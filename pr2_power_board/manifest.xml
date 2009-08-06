@@ -1,0 +1,12 @@
+<package>
+  <description>This is a driver for the PR2 Power Board</description>
+  <author>Tully Foote</author>
+  <license>BSD</license>
+  <review status="API cleared" notes=""/>
+  <depend package="roscpp" />
+  <depend package="rospy" />
+  <depend package="diagnostic_msgs" />
+  <export> 
+    <cpp cflags="-I${prefix}/srv/cpp" />   
+  </export> 
+</package>

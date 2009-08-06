@@ -1,0 +1,47 @@
+/** 
+@mainpage 
+
+@htmlinclude manifest.html
+
+@b pr2_power_board provides a software interface to the power board used on the PR2 Robot.
+
+
+@section usage Commandline Usage
+
+@subsection power_node Power Node
+./power_node  
+ Execute this to communicate with the power board.  It will look for the powerboard on the ethernet 
+interface routed to 192.168.1.1
+
+@subsection send Send Commands
+./send_command breaker_number command
+ - breaker_number (0 | 1 | 2)
+ - command = (start | stop | reset | disable)
+
+send_command will send a command over ROS to the power_node which will then execute it.  
+Thus send_command requires a power_node to be operating to be useful.  
+
+@subsection gui Power Board GUI
+./view_power  
+
+ This will start up a wx based gui to allow viewing and commanding of the power board.  This simply
+provides a graphical interface to the power_node over ROS.  Without the power_node running this will do nothing.  
+
+\image html view_power.png
+
+@section topic ROS topics
+
+Publishes to (name / type):
+ - @b "/diagnostic" / robot_msgs::DiagnosticMessage : The standard diagnostic status message format for self reporting.  To view this use the package runtime_monitor's wxmonitor
+
+
+@section services ROS Services
+ - @b "self_test"/SelfTest  : The system is entirely passive, this can't do much.  @todo add this
+
+@section param ROS Parameters
+ - Read: 
+  - @b "timeout": Seconds, the number of seconds to timeout after lost communications to the device if unset assumes 10.0 @todo do this
+  - @b "diagnostic_rate": Hz, How often to broadcast diagnostic information, if unset assumes 1.0 Hz @todo do this
+ */
+
+
