@@ -1,0 +1,615 @@
+#!/usr/bin/env python
+# Software License Agreement (BSD License)
+#
+# Copyright (c) 2008, Willow Garage, Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+#  * Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above
+#    copyright notice, this list of conditions and the following
+#    disclaimer in the documentation and/or other materials provided
+#    with the distribution.
+#  * Neither the name of the Willow Garage nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+"""
+ocean_battery_driver
+IBPS battery monitor
+
+To run, invoke rosrun ocean_battery_driver monitor
+"""
+import roslib; roslib.load_manifest('ocean_battery_driver')
+
+import os
+import sys
+import time
+import select
+import time
+
+import rospy
+
+from robot_msgs.msg import BatteryState
+from diagnostic_msgs.msg import DiagnosticMessage, DiagnosticStatus, DiagnosticValue, DiagnosticString
+
+import socket
+
+NAME = 'monitor'
+
+def usage(stdout, progname):
+    print >>stdout, """%s [-h] [-v] [-n] [-tdevice_template] [-p####]
+
+Example:
+  monitor_batteries -t/dev/ttyUSB -p0123
+   Will open ports /dev/ttyUSB0 /dev/ttyUSB1 /dev/ttyUSB2 /dev/ttyUSB3
+
+Options:
+ -h shows this
+ -v displays to screen when sending over ros
+ -n turns off ros broadcasting and just displays to screen
+
+"""%progname+rospy.USAGE_ENV
+
+## @param st str
+## @return total as checksum
+def checksum(st):
+    return sum(map(ord, st))
+## @param st str
+## @return total mod 256 as checksum
+def checksum256(st):
+    return sum(map(ord, st)) % 256
+
+## @param s str
+## @return the integer value of a hexadecimal string \a s
+def hex2dec(s):
+    return int(s, 16)
+
+def readmask(hexstr):
+    char = hex2dec(hexstr)
+    mask = []
+    for i in range(0,16):
+        if char & (1 << i):
+            mask.append(True)
+        else:
+            mask.append(False)
+    return mask
+
+        
+
+class PowerBattery(object):
+    def __init__(self):
+        self.present = False
+        self.charging = False
+        self.supplying_power = False
+        self.w_charge_power = False
+        self.power_no_good = False
+        self.charge_inhibited = False
+        self.voltage = 0.0
+        self.current = 0.0
+        self.average_current = 0.0
+        self.temperature = 0.0
+        self.max_relative_charge_error = 0
+        self.absolute_charge = 0
+        self.relative_charge = 0
+        self.remaining_capacity = 0
+        self.full_charge_capacity = 0
+        self.run_time_to_empty = 0
+        self.average_time_to_empty = 0
+        self.average_time_to_full = 0
+        self.battery_status = ""
+        #self.capacity_mode = ""
+        self.conditioning_needed = 0
+        self.cycle_count = 0
+        self.design_capacity = 0
+        self.design_voltage = 0
+#        self.secification_info = 
+#        self.manufacture_date = 
+        self.serial_number = ""
+##        self.chemistry = ""
+        self.last_time = time.time()
+
+class PowerController(object):
+    def __init__(self):
+        self.time_remaining = 0
+        self.average_charge = 0
+        #self.batteries = [PowerBattery(),PowerBattery(),PowerBattery(),PowerBattery()]
+        self.batteries = [PowerBattery() for i in xrange(0, 8)]
+        self.latest_system_messages = []
+        self.last_time = time.time()
+
+    def new_system_message(self, mess):
+        self.latest_system_messages.append(mess)
+        while len(self.latest_system_messages) > 10:
+            self.latest_system_messages.pop(0)
+
+    def total_current(self):
+        total_current = 0.0;
+        for batt in self.batteries:
+            total_current += batt.current
+        return total_current
+
+    def average_voltage(self):
+        total_voltage = 0.0;
+        count = 0
+        for batt in self.batteries:
+            if batt.present:
+                total_voltage += batt.voltage
+                count += 1
+
+        if count == 0:
+            return 0.0
+        else:
+            return total_voltage/float(count)
+    
+class RobotPower(object):
+    def __init__(self):
+        self.controllers = [PowerController() for i in xrange(0, 4)]
+        self.pub = rospy.Publisher("/diagnostics", DiagnosticMessage)
+        self.battery_state_pub = rospy.Publisher("battery_state", BatteryState)
+        self.full_charge_energy = 0
+        self.last_battery_warn = 0
+
+        self.robot = socket.gethostname()[:-1].upper()
+
+    def print_remaining(self):
+        print """___________________________________
+Battery Controller Information:
+-----------------------------------
+time remaining per battery pack in minutes"""
+        c0, c1, c2, c3 = [self.controllers[i] for i in xrange(0, 4)]
+        print '1: %d, 2:%d, 3:%d, 4:%d'%(c0.time_remaining,c1.time_remaining,c2.time_remaining,c3.time_remaining)
+        print "average charge percentage"
+        print '1: %d, 2:%d, 3:%d, 4:%d'%(c0.average_charge,c1.average_charge,c2.average_charge,c3.average_charge)
+        print "total_current"
+        print '1: %.2f, 2:%.2f, 3:%.2f, 4:%.2f'%(c0.total_current(),c1.total_current(),c2.total_current(),c3.total_current())
+        print "average_voltage"
+        print '1: %.2f, 2:%.2f, 3:%.2f, 4:%.2f'%(c0.average_voltage(),c1.average_voltage(),c2.average_voltage(),c3.average_voltage())
+        print "time since last update"
+        print '1: %.2f, 2:%.2f, 3:%.2f, 4:%.2f'%(time.time() - c0.last_time,time.time() - c1.last_time,time.time() - c2.last_time,time.time() - c3.last_time)
+
+        controller_counter = 0
+        for controller in self.controllers:
+            battery_counter = 0
+            for b in controller.batteries:
+                if b.present:
+                    print "Controller:%d Battery:%d:: V: %.2f Vdesign: %.2f I: %.2f Iave: %.2f Temp: %.1f RelChg: %.1f AbsChg: %.1f RemCap: %.1f Capdesign: %.1f TTEAve: %.1f TTERun: %.1f TTF: %.1f Cycles: %d Serial: %s Update: %f"%(controller_counter, battery_counter, b.voltage, b.design_voltage, b.current, b.average_current, b.temperature, b.relative_charge, b.absolute_charge, b.remaining_capacity, b.design_capacity, b.average_time_to_empty, b.run_time_to_empty, b.average_time_to_full, b.cycle_count, b.serial_number, time.time() - b.last_time)
+                battery_counter = battery_counter + 1 # There must be a better way to enumerate this
+            controller_counter = controller_counter + 1
+
+        for control in self.controllers:
+            if len(control.latest_system_messages):
+                print "latest system messages:"
+                for message in control.latest_system_messages:
+                    print message
+
+    ## Send out the state of the controller on a diagnostic message
+    def broadcast_diagnostic(self):
+        stats = []
+        timeout = rospy.get_param("timeout", 10)
+        
+        for ci in range(0,len(self.controllers)):
+            c = self.controllers[ci]
+            sval = [(c.time_remaining, "Time Remaining (min)"),
+                    (c.average_charge, "Average charge (percent)"),
+                    (c.total_current(), "Current (A)"),
+                    (c.average_voltage(), "Voltage (V)"),
+                    (time.time() - c.last_time, "Time since update (s)")]
+            sval = [DiagnosticValue(v, s) for v,s in sval]
+            controller_status_value = 0
+            controller_status_string = "OK"
+            if timeout < time.time() - c.last_time:
+                controller_status_string = " Timeout %f > %f"%(c.last_time, timeout)
+                controller_status_value = 2
+            if c.time_remaining < 20:
+                controller_status_string = " Low Battery %f Minutes Remaining"%(c.time_remaining)
+                controller_status_value = 1
+            if c.time_remaining < 5:
+                controller_status_string = " Extremely Low Battery %f Minutes Remaining"%(c.time_remaining)
+                controller_status_value = 2
+
+            ##
+            stat = DiagnosticStatus()
+            stat.level = controller_status_value
+            stat.name = "IBPS %d" % (ci)
+            stat.message = controller_status_string
+            ##@todo Add HW id
+            stat.hardware_id = "%s IBPS %d" % (self.robot, ci)
+            stat.values = sval
+            stat.strings = []
+
+            stats.append(stat)
+            ## @todo make the status string represent errors etc
+
+            for bi in range(0,len(c.batteries)):
+                b = c.batteries[bi]
+                if b.present < 0.5:
+                    continue
+                bval = [(b.present, "present (0,1)"),
+                        (b.charging, "charging (0,1)"),
+                        (b.supplying_power, "supplying power (0,1)"),
+                        (b.w_charge_power, "with charge power (0,1)"),
+                        (b.charge_inhibited, "charge inhibited (0,1)"),
+                        (b.voltage, "voltage (V)"),
+                        (b.current, "current (A)"),
+                        (b.average_current, "average current (1 minute average A)"),
+                        (b.temperature, "temperature (K)"),
+                        (b.max_relative_charge_error, "max relative charge error (%)"),
+                        (b.relative_charge, "relative charge (%)"),
+                        (b.remaining_capacity, "remaining capacity (mAh"),
+                        (b.full_charge_capacity, "full charge capacity (mAh)"),
+                        (b.run_time_to_empty, "run time to empty (min)"),
+                        (b.average_time_to_empty, "average time to empty (min)"),
+                        (b.average_time_to_full, "average time to full (min)"),
+                        (b.conditioning_needed, "conditioning needed (0,1)"),
+                        (b.cycle_count, "cycle count"),
+                        (b.design_capacity, "design capacity (mAh)"),
+                        (b.design_voltage, "design voltage (V)"),
+                        (time.time() - b.last_time, "Time since update (s)")]
+                bval = [DiagnosticValue(v, s) for v,s in bval]
+                stringval = [DiagnosticString("%s"%b.serial_number, "Serial Number")]
+##stringval.append(DiagnosticString(b.chemistry, "Chemistry"))
+
+                status_string = ""
+                status_value = 0
+                
+                if len(b.battery_status) != 0:
+                    status_value = 1
+                    status_string = status_string + " %s"%b.battery_status
+                if timeout < time.time() - b.last_time:
+                    status_string = status_string + " Timeout %f > %f"%(b.last_time, timeout)
+                    status_value = 2
+                if b.power_no_good == 1:
+                    status_string = status_string + " POWER NO GOOD Unplug all batteries from this controller to reset "
+                    status_value = 2
+                
+                # Record ok if no errors above
+                if not status_string:
+                    status_string = "OK" 
+                    status_value = 0     
+
+                stat = DiagnosticStatus()
+                stat.level = status_value
+                stat.name = "Smart Battery %d.%d" % (ci, bi)
+                stat.message = status_string
+                ##@todo Add HW id
+                stat.hardware_id = "%s Smart Battery %d.%d" % (self.robot, ci, bi)
+                stat.values = bval
+                stat.strings = stringval
+                stats.append(stat)
+
+            
+        self.pub.publish(DiagnosticMessage(None, stats))
+
+        
+    ## Send out the state of the battery charge
+    def send_battery_state(self):
+        stat = []
+        full_energy = 0        
+        energy = 0
+        power = 0
+	controller_count = 0
+	average_time_remaining  = 0
+        for c in self.controllers:
+	    controller_count = controller_count + 1
+	    average_time_remaining = (average_time_remaining * (controller_count - 1) + c.time_remaining ) / controller_count 
+            for b in c.batteries:
+                if b.present < 0.5:
+                    continue
+                energy = energy + b.design_voltage * b.remaining_capacity * 3.6 ## assuming mAh capacity
+                full_energy = full_energy + b.design_voltage * b.full_charge_capacity * 3.6 ## assuming mAh capacity
+                power = power + b.design_voltage * b.current ## assuming mAh capacity
+
+        self.full_charge_energy = full_energy
+
+        # Send errors if runtime remaining is low
+	
+        if average_time_remaining  < 1.0: 
+            rospy.logfatal("Batteries have %.2f minutes estimated remaining"%average_time_remaining)
+	elif average_time_remaining  < 5.0: 
+            rospy.logerr("Batteries have %.2f minutes estimated remaining"%average_time_remaining)
+        elif average_time_remaining < 30.0 and self.last_battery_warn + 6 < rospy.get_time():
+            rospy.logwarn("Batteries have %.2f minutes estimated remaining"%average_time_remaining)
+            self.last_battery_warn = rospy.get_time()
+
+        #print "Sent Energy: %.0f (J)  of %.0f (J) Power: %.2f (W)\n"%(energy, full_energy, power)
+        self.battery_state_pub.publish(BatteryState(None, energy, full_energy, power))
+
+
+################################################################################
+# BATTERY MESSAGE PARSING        
+
+def current_value(b, value):
+    intval = float(hex2dec(value))
+    if intval < 32767:
+        val = intval
+    else:
+        val = (intval - 65636.0)
+    #print 'current is %f'%(val/1000.0)
+    return val/1000
+def voltage_value(b, value):
+    return float(hex2dec(value))/1000.0
+def temperature_value(b, value):
+    return float(hex2dec(value))/10.0
+def str_hex2dec(b, value):
+    return str(hex2dec(value))
+def float_hex2dec(b, value):
+    return float(hex2dec(value))
+def capacity_mode_float_hex2dec(b, value):
+    ## @todo need to check/compare w/ CAPACITY_MODE bit to determine units                                
+    return float(hex2dec(value))
+def battery_status(b, value):
+    val = ""
+    mask = readmask(value)
+    if mask[15] == 1:
+        val = val + "OVER_CHARGED_ALARM "
+    if mask[14] == 1:
+        val = val + "TERMINATE_CHARGE_ALARM "
+    if mask[12] == 1:
+        val = val + "OVER_TEMP_ALARM "
+    if mask[11] == 1:
+        val = val + "TERMINATE_DISCHARGE_ALARM "
+    if mask[7] == 0:
+        val = val + "INITIALZED FALSE "
+    ##A test of actually capturing errors
+    #b.battery_status = b.battery_status + "TESTING ERROR FALSE "
+    return val
+def conditioning_needed(b, value):
+    mask = readmask(value)
+    if mask[7] == 0:
+        return 0
+    else:
+        return 1
+
+battery_keys = {
+    '03': (conditioning_needed, 'conditioning_needed'),
+    '08': (temperature_value, 'temperature'),
+    '09': (voltage_value, 'voltage'),
+    '0A': (current_value, 'current'),
+    #  1 minute average current
+    '0B': (current_value, 'average_current'),
+    '0C': (float_hex2dec, 'max_relative_charge_error'),
+    '0D': (float_hex2dec, 'relative_charge'),
+    '0E': (float_hex2dec, 'absolute_charge'),
+    '0F': (capacity_mode_float_hex2dec, 'remaining_capacity'),
+    '10': (capacity_mode_float_hex2dec, 'full_charge_capacity'),
+    '11': (float_hex2dec, 'run_time_to_empty'),
+    '12': (float_hex2dec, 'average_time_to_empty'),
+    '13': (float_hex2dec, 'average_time_to_full'),
+    # 14 and 15 undocumented
+    ## @todo 0x16 battery status a large bit field with lots of parsing    
+    '16': (battery_status, 'battery_status'),
+    '17': (float_hex2dec, 'cycle_count'),
+    '18': (capacity_mode_float_hex2dec, 'design_capacity'),
+    '19': (voltage_value, 'design_voltage'),
+    ## @todo 0x1A specification info bit field parsing
+    ## @todo 0x1B manufacture date bit field parsing
+    '1C': (str_hex2dec, 'serial_number'),
+}
+def battery_message(c, message):
+    controller_number = int(message[1])
+    battery_number = int(message[2]) -1 # -1 for 1 index to 0 index
+    b = c.batteries[battery_number]
+    #b = myPow.controllers[port].batteries[battery_number]
+    #print 'Battery %d on Controller %d'%(battery_number, controller_number)
+    b.last_time = time.time()
+
+    splitmessage = message.split(',')
+    for i in range(0,(len(splitmessage)-1)/2):
+        key = splitmessage[i*2+1]
+        value = splitmessage[i*2+2]
+        #print 'key %s , value %s'%(splitmessage[i*2+1],splitmessage[i*2+2])
+        #print 'key %s , value dec %s'%(splitmessage[i*2+1],hex2dec(splitmessage[i*2+2]))
+        try:
+            if key in battery_keys:
+                handler, attr = battery_keys[key]
+                setattr(b, attr, handler(b, value))
+            ##if key == '22':
+            ##   b.chemistry = hex2desc(value)
+        except ValueError:
+            print "Bad parsed value"
+
+
+################################################################################
+# SYSTEM MESSAGE
+def system_message(c, message):
+    splitmessage = message.split(',')
+    #print 'System Message'
+    for i in range(0,(len(splitmessage)-1)/2):
+        key = splitmessage[i*2+1]
+        value = splitmessage[i*2+2]
+        ##print 'key %s , value %s'%(key,value)
+        ##print 'key %s , value dec %s'%(key,hex2dec(value))
+        try:
+            if key == '01':
+                #print 'time until exhaustion = %s minutes'%hex2dec(value)
+                c.time_remaining = int(hex2dec(value))
+            elif key == '02':
+                #reserved
+                pass
+            elif key == '03':
+                #print 'text message to the system %s'%value
+                c.new_system_message(value)
+            elif key == '04':
+                #print 'average charge percent %d'% hex2dec(value)
+                c.average_charge = int(hex2dec(value))
+        except ValueError:
+            print "bad string parsing"
+
+################################################################################
+# CONTROLLER MESSAGE
+def controller_message(c, message):
+    controller_number = int(message[1])
+    c.last_time = time.time()
+    #print 'Controller on port %s says:'%(port_string)
+    splitmessage = message.split(',')
+
+    mask = readmask(splitmessage[2])
+    #print 'batteries present', mask
+    for i in range(0,8):
+        c.batteries[i].present = mask[i]
+    mask = readmask(splitmessage[4])
+    #print 'batteries charging', mask
+    for i in range(0,8):
+        c.batteries[i].charging = mask[i]
+    mask = readmask(splitmessage[6])
+    #print 'batteries supplying power to system', mask
+    for i in range(0,8):
+        c.batteries[i].supplying_power = mask[i]
+    mask = readmask(splitmessage[10])
+    #print 'batteries which have charge power present', mask
+    for i in range(0,8):
+        c.batteries[i].w_charge_power = mask[i]
+    mask = readmask(splitmessage[12])
+    #print 'batteries with "Power no good"',mask
+    for i in range(0,8):
+        c.batteries[i].power_no_good = mask[i]
+    mask = readmask(splitmessage[14])
+    #print 'batteries charge inhibited', mask
+    for i in range(0,8):
+        c.batteries[i].charge_inhibited = mask[i]
+    
+################################################################################
+# MAIN LOOP
+def monitor_main(argv, stdout, env):
+    verbose = False
+    using_ros = True
+    port_name_template = "/dev/ttyUSB"
+    port_list = ["/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2", "/dev/ttyUSB3"] # default list of ports that controllers are on
+    #check arguments for a help flag
+    import getopt
+    optlist, args = getopt.getopt(argv[1:], "nvh?p:s:t:", ["help","port=","server=","template="])
+    for o, a in optlist:
+        if o in ("-h","-?","--help"):
+            usage(stdout, argv[0])
+            return
+        elif o in ("-t", "--template"):
+            port_name_template = a
+        elif o in ("-p", "--port"):
+            port_list = [] #clear list and load from 
+            for i in range(0,len(a)):
+                port_list.append("%s%d"%(port_name_template, int(a[i])))
+        elif o in("-v"):
+            verbose = True
+        elif o in("-n"):
+            using_ros = False
+
+    rospy.init_node(NAME)
+
+    rospy.logout("opening ports: %s"%','.join(port_list))
+    # set port settings to talk to IBPS and make sure the ports are
+    # sending hex
+    for name in port_list:
+        try:
+            os.system('stty 19200 <%s'%name)
+            f = open('%s'%name,'w')
+            f.write('X')
+            f.close()
+        except IOError:
+            rospy.logfatal("cannot open port [%s]"%name)
+            sys.exit(1)
+
+    p_num = 0 # temp variable for filling in controller numbers
+    port_number = {} # dictionary to hold lookup to port number
+    ports = [] # list of opened ports
+    for name in port_list:
+        ports.append (open('%s'%name,'r'))
+        port_number[ports[-1]] = p_num
+        p_num = p_num + 1
+
+    pow = RobotPower()
+
+    start_time = time.time()
+    last_time = start_time
+    last_time_battery_state = start_time
+    # continuously read from the ports while not shutdown
+    while not rospy.is_shutdown():
+        # select from all open ports to wait for new data
+        try:
+            current, _, _ = select.select(ports,[],[],1)
+        except select.error, e:
+            if e[0] == 4:
+                rospy.logout("exiting on interrupt")
+                sys.exit(0)
+            else:
+                rospy.logfatal("select call failed with IOError [%s]"%str(e))
+                sys.exit(1)
+        # figure out which port(s) got new data
+        for f in current:
+            for p in ports: #determine which port it came in on
+                if f == p:
+                    port = port_number[p]
+		    c = pow.controllers[port]
+            line = f.readline()
+            # split on %  to string and checksum
+            try:
+                message, checksum = line.split('%')
+            except:
+                continue
+            checksum=checksum.strip()
+            message=message.lstrip('$')
+
+            ## @todo check checksum
+            #print checksum256(checksum)
+            #print hex2dec(message)
+
+            if len(message) < 2:
+                print "error message too short: \"%s\" from \"%s\""%(message, line)
+                print "This often indicates a misconfigured serial port check port:\n%s"%f
+                continue
+
+            if message[0] == 'C':
+                controller_message(c, message)
+            elif message[0] == 'B':
+                battery_message(c, message)
+            elif message[0] == 'S':
+                system_message(c, message)
+
+        if using_ros:
+
+            try:
+                increment = rospy.get_param("diagnostic_rate")
+            except KeyError:
+                increment = 1.0
+            if time.time() - last_time > increment:
+                last_time = last_time + increment
+                if verbose == True: 
+                    pow.print_remaining()
+                pow.broadcast_diagnostic()
+
+            try:
+                increment = rospy.get_param("battery_state_rate")
+            except KeyError:
+                increment = 1.0
+
+            if time.time() - last_time_battery_state > increment:
+                last_time_battery_state = last_time_battery_state + increment
+                pow.send_battery_state()
+        else:
+            increment = 1.0
+            if time.time() - last_time > increment:
+                last_time = last_time + increment
+                pow.print_remaining()
+                
+if __name__ == '__main__':
+    monitor_main(sys.argv, sys.stdout, os.environ)
+    print "exiting"
+
+        

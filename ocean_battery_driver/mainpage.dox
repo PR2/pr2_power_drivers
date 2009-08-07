@@ -1,0 +1,38 @@
+/** 
+\mainpage 
+
+@htmlinclude manifest.html
+
+@b ocean_battery_driver provides an interface to the IBPS battery power system used on the PR2 Robot.
+
+
+@section usage Commandline Usage
+monitor_batteries [-tdevice_template] [-p####]
+ - device_template is the template for the device names such as ( /dev/ttyUSB )
+ - #### are the numbers of the ports to add to the template.  There can be any number of these, single diget ports only.  
+
+monitor_batteries -t/dev/ttyUSB -p0123  
+ - Will open ports /dev/ttyUSB0 /dev/ttyUSB1 /dev/ttyUSB2 /dev/ttyUSB3
+
+
+@section topic ROS topics
+
+Publishes to (name / type):
+ - @b "/diagnostic" / diagnostic_msgs::DiagnosticMessage : The standard diagnostic status message format for self reporting.  
+ - @b "battery_state" / diagnostic_msgs::BatteryState : The joules remaining in the battery pack and the current wattage.
+
+
+@section services ROS Services
+ - @b "self_test"/SelfTest  : The system is entirely passive, this can't do much.  @todo add this
+
+@section param ROS Parameters
+ - Read: 
+  - @b "timeout": Seconds, the number of seconds to timeout after lost communications to the device if unset assumes 10.0 
+  - @b "diagnostic_rate": Hz, How often to broadcast diagnostic information, if unset assumes 1.0 Hz
+  - @b "battery_state_rate": Hz, How often to broadcast diagnostic information, if unset assumes 1.0 Hz
+
+
+Notes when setting up:
+ - The user must have permissions on the serial ports in use.  In Ubuntu adding the user to groupd dialout usually is sufficient.  
+
+ */
