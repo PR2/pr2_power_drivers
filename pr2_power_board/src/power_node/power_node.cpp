@@ -54,7 +54,7 @@
 
 #include "power_comm.h"
 #include "power_node.h"
-#include "diagnostic_msgs/DiagnosticMessage.h"
+#include "diagnostic_msgs/DiagnosticArray.h"
 #include "rosconsole/macros_generated.h"
 #include "ros/ros.h"
 
@@ -619,7 +619,7 @@ void PowerBoard::init()
 
   service = node_handle.advertiseService("power_board_control", &PowerBoard::commandCallback, this);
 
-  pub = node_handle.advertise<diagnostic_msgs::DiagnosticMessage>("/diagnostics", 2);
+  pub = node_handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
 }
 
 bool PowerBoard::commandCallback(pr2_power_board::PowerBoardCommand::Request &req_,
@@ -641,7 +641,7 @@ void PowerBoard::collectMessages()
 
 void PowerBoard::sendDiagnostic()
 {
-  diagnostic_msgs::DiagnosticMessage msg_out;
+  diagnostic_msgs::DiagnosticArray msg_out;
   diagnostic_msgs::DiagnosticStatus stat;
   diagnostic_msgs::KeyValue val;
 
