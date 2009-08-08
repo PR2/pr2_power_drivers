@@ -5,7 +5,6 @@
   <review status="API cleared" notes=""/>
   <depend package="rospy" />
   <depend package="diagnostic_msgs" />
-  <depend package="robot_msgs" />
   <depend package="diagnostic_test" />
   <rosdep name="wxpython"/>
 </package>
