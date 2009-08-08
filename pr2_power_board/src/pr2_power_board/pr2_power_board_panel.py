@@ -93,7 +93,7 @@ class PowerBoardPanel(wx.Panel):
 
         self._real_panel.Bind(wx.EVT_BUTTON, self.ResetCurrent, id=xrc.XRCID('button_reset_current'))
         self._real_panel.Bind(wx.EVT_BUTTON, self.ResetTransitions, id=xrc.XRCID('button_reset_transitions'))
-        rospy.Subscriber("/diagnostics", DiagnosticMessage, self.diagnostics_callback)
+        rospy.Subscriber("/diagnostics", DiagnosticArray, self.diagnostics_callback)
         
         self.power_control = rospy.ServiceProxy('power_board_control', PowerBoardCommand)
 
@@ -134,7 +134,7 @@ class PowerBoardPanel(wx.Panel):
     def addBoard( self, status ):
         name = status.name
         serial = int(0)
-        for strvals in status.strings:
+        for strvals in status.values:
             if (strvals.label == "Serial Number"):
                 serial = int(strvals.value)
         print "Adding: %s serial=%d" %(name,serial)
@@ -192,7 +192,7 @@ class PowerBoardPanel(wx.Panel):
                                 else:
                                     self.estop_button_status = "Stop"
 
-                    for strvals in status.strings:
+                    for strvals in status.values:
                         if (strvals.label == "Breaker 0 State"):
                             self.breaker_state[0] = strvals.value
                         if (strvals.label == "Breaker 1 State"):
@@ -205,9 +205,9 @@ class PowerBoardPanel(wx.Panel):
 ##                    print "Voltages: %.1f %.1f %.1f"%(self.voltages[0],self.voltages[1], self.voltages[2])
 ##                    print "States: %s %s %s"%(self.breaker_state[0], self.breaker_state[1], self.breaker_state[2])
 
-                    self.breaker0_status.SetValue("%s @ %.2fV"%(self.breaker_state[0], self.voltages[0]))
-                    self.breaker1_status.SetValue("%s @ %.2fV"%(self.breaker_state[1], self.voltages[1]))
-                    self.breaker2_status.SetValue("%s @ %.2fV"%(self.breaker_state[2], self.voltages[2]))
+                    self.breaker0_status.SetValue("%s @ %sV"%(self.breaker_state[0], self.voltages[0]))
+                    self.breaker1_status.SetValue("%s @ %sV"%(self.breaker_state[1], self.voltages[1]))
+                    self.breaker2_status.SetValue("%s @ %sV"%(self.breaker_state[2], self.voltages[2]))
                     if self.breaker_state[0] == "Standby":
                         self.breaker0_status.SetBackgroundColour("Orange")
                     elif self.breaker_state[0] == "On":
