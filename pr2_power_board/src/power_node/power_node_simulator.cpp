@@ -333,7 +333,7 @@ void PowerBoard::sendDiagnostic()
 {
   diagnostic_msgs::DiagnosticMessage msg_out;
   diagnostic_msgs::DiagnosticStatus stat;
-  diagnostic_msgs::DiagnosticValue val;
+  diagnostic_msgs::KeyValue val;
   diagnostic_msgs::DiagnosticString strval;
 
   while(ok())
