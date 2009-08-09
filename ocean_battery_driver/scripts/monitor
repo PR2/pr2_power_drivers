@@ -47,8 +47,8 @@ import time
 
 import rospy
 
-from robot_msgs.msg import BatteryState
-from diagnostic_msgs.msg import DiagnosticMessage, DiagnosticStatus, KeyValue, DiagnosticString
+from pr2_msgs.msg import BatteryState
+from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 
 import socket
 
@@ -162,7 +162,7 @@ class PowerController(object):
 class RobotPower(object):
     def __init__(self):
         self.controllers = [PowerController() for i in xrange(0, 4)]
-        self.pub = rospy.Publisher("/diagnostics", DiagnosticMessage)
+        self.pub = rospy.Publisher("/diagnostics", DiagnosticArray)
         self.battery_state_pub = rospy.Publisher("battery_state", BatteryState)
         self.full_charge_energy = 0
         self.last_battery_warn = 0
@@ -212,7 +212,7 @@ time remaining per battery pack in minutes"""
                     (c.total_current(), "Current (A)"),
                     (c.average_voltage(), "Voltage (V)"),
                     (time.time() - c.last_time, "Time since update (s)")]
-            sval = [KeyValue(v, s) for v,s in sval]
+            sval = [KeyValue(s, str(v)) for v,s in sval]
             controller_status_value = 0
             controller_status_string = "OK"
             if timeout < time.time() - c.last_time:
@@ -233,7 +233,6 @@ time remaining per battery pack in minutes"""
             ##@todo Add HW id
             stat.hardware_id = "%s IBPS %d" % (self.robot, ci)
             stat.values = sval
-            stat.strings = []
 
             stats.append(stat)
             ## @todo make the status string represent errors etc
@@ -242,11 +241,11 @@ time remaining per battery pack in minutes"""
                 b = c.batteries[bi]
                 if b.present < 0.5:
                     continue
-                bval = [(b.present, "present (0,1)"),
-                        (b.charging, "charging (0,1)"),
-                        (b.supplying_power, "supplying power (0,1)"),
-                        (b.w_charge_power, "with charge power (0,1)"),
-                        (b.charge_inhibited, "charge inhibited (0,1)"),
+                bval = [(b.present, "present"),
+                        (b.charging, "charging"),
+                        (b.supplying_power, "supplying power"),
+                        (b.w_charge_power, "with charge power"),
+                        (b.charge_inhibited, "charge inhibited"),
                         (b.voltage, "voltage (V)"),
                         (b.current, "current (A)"),
                         (b.average_current, "average current (1 minute average A)"),
@@ -263,9 +262,8 @@ time remaining per battery pack in minutes"""
                         (b.design_capacity, "design capacity (mAh)"),
                         (b.design_voltage, "design voltage (V)"),
                         (time.time() - b.last_time, "Time since update (s)")]
-                bval = [KeyValue(v, s) for v,s in bval]
-                stringval = [DiagnosticString("%s"%b.serial_number, "Serial Number")]
-##stringval.append(DiagnosticString(b.chemistry, "Chemistry"))
+                bval = [KeyValue(s, str(v)) for v,s in bval]
+                bval.append(KeyValue("Serial Number", "%s" % b.serial_number))
 
                 status_string = ""
                 status_value = 0
@@ -289,14 +287,14 @@ time remaining per battery pack in minutes"""
                 stat.level = status_value
                 stat.name = "Smart Battery %d.%d" % (ci, bi)
                 stat.message = status_string
-                ##@todo Add HW id
-                stat.hardware_id = "%s Smart Battery %d.%d" % (self.robot, ci, bi)
+                stat.hardware_id = b.serial_number
                 stat.values = bval
-                stat.strings = stringval
                 stats.append(stat)
 
             
-        self.pub.publish(DiagnosticMessage(None, stats))
+        array = DiagnosticArray()
+        array.status = stats
+        self.pub.publish(array)
 
         
     ## Send out the state of the battery charge
