@@ -135,7 +135,7 @@ class PowerBoardPanel(wx.Panel):
         name = status.name
         serial = int(0)
         for strvals in status.values:
-            if (strvals.label == "Serial Number"):
+            if (strvals.key == "Serial Number"):
                 serial = int(strvals.value)
         print "Adding: %s serial=%d" %(name,serial)
         self.myList.Append(str(name));
@@ -172,18 +172,18 @@ class PowerBoardPanel(wx.Panel):
                         self._real_panel.Enable(False)
 
                     for value in status.values:
-                        if (value.label == "Breaker 0 Voltage"):
+                        if (value.key == "Breaker 0 Voltage"):
                             self.voltages[0] = value.value
-                        if (value.label == "Breaker 1 Voltage"):
+                        if (value.key == "Breaker 1 Voltage"):
                             self.voltages[1] = value.value
-                        if (value.label == "Breaker 2 Voltage"):
+                        if (value.key == "Breaker 2 Voltage"):
                             self.voltages[2] = value.value
-                        if (value.label == "RunStop Button Status"):
+                        if (value.key == "RunStop Button Status"):
                             if value.value > 0.5:
                                 self.estop_wireless_status = "Run"
                             else:
                                 self.estop_wireless_status = "Stop"
-                        if (value.label == "RunStop Status"):
+                        if (value.key == "RunStop Status"):
                             if value.value > 0.5:
                                 self.estop_button_status = "Run"
                             else:
@@ -193,11 +193,11 @@ class PowerBoardPanel(wx.Panel):
                                     self.estop_button_status = "Stop"
 
                     for strvals in status.values:
-                        if (strvals.label == "Breaker 0 State"):
+                        if (strvals.key == "Breaker 0 State"):
                             self.breaker_state[0] = strvals.value
-                        if (strvals.label == "Breaker 1 State"):
+                        if (strvals.key == "Breaker 1 State"):
                             self.breaker_state[1] = strvals.value
-                        if (strvals.label == "Breaker 2 State"):
+                        if (strvals.key == "Breaker 2 State"):
                             self.breaker_state[2] = strvals.value
                     
 
