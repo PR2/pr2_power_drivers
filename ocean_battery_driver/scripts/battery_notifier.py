@@ -38,7 +38,7 @@
 import roslib
 roslib.load_manifest('ocean_battery_driver')
 import rospy
-from robot_msgs.msg import BatteryState
+from pr2_msgs.msg import BatteryState
 import os, sys
 
 class BatteryNotifier:
