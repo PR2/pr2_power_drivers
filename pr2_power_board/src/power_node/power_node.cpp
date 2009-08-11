@@ -55,6 +55,7 @@
 #include "power_comm.h"
 #include "power_node.h"
 #include "diagnostic_msgs/DiagnosticArray.h"
+#include "diagnostic_updater/DiagnosticStatusWrapper.h"
 #include "rosconsole/macros_generated.h"
 #include "ros/ros.h"
 
@@ -641,10 +642,6 @@ void PowerBoard::collectMessages()
 
 void PowerBoard::sendDiagnostic()
 {
-  diagnostic_msgs::DiagnosticArray msg_out;
-  diagnostic_msgs::DiagnosticStatus stat;
-  diagnostic_msgs::KeyValue val;
-
   ros::Rate r(1);
   while(node_handle.ok())
   {
@@ -654,8 +651,8 @@ void PowerBoard::sendDiagnostic()
   
     for (unsigned i = 0; i<Devices.size(); ++i)
     {
-      msg_out.status.clear();
-      stat.values.clear();
+      diagnostic_msgs::DiagnosticArray msg_out;
+      diagnostic_updater::DiagnosticStatusWrapper stat;
 
       Device *device = Devices[i];
       const PowerMessage *pmesg = &device->getPowerMessage();
@@ -666,187 +663,101 @@ void PowerBoard::sendDiagnostic()
 
       if( (ros::Time::now() - device->message_time) > TIMEOUT )
       {
-        stat.level = 2;
-        stat.message = "No Updates";
+        stat.summary(2, "No Updates");
       }
       else
       {
-        stat.level = 0;
-        stat.message = "Running";
+        stat.summary(0, "Running");
       }
       const StatusStruct *status = &pmesg->status;
 
       ROS_DEBUG("Device %u", i);
       ROS_DEBUG(" Serial       = %u", pmesg->header.serial_num);
 
-      ss.str("");
-      ss << pmesg->header.serial_num;
-      val.value = ss.str();
-      val.key = "Serial Number";
-      stat.values.push_back(val);
+      stat.add("Serial Number", pmesg->header.serial_num);
 
       ROS_DEBUG(" Current      = %f", status->input_current);
-      ss.str("");
-      ss << status->input_current;
-      val.value = ss.str();
-      val.key = "Input Current";
-      stat.values.push_back(val);
+      stat.add("Input Current", status->input_current);
 
       ROS_DEBUG(" Voltages:");
       ROS_DEBUG("  Input       = %f", status->input_voltage);
-      ss.str("");
-      ss << status->input_voltage;
-      val.value = ss.str();
-      val.key = "Input Voltage";
-      stat.values.push_back(val);
+      stat.add("Input Voltage", status->input_voltage);
+      
       ROS_DEBUG("  DCDC 12     = %f", status->DCDC_12V_out_voltage);
-      ss.str("");
-      ss << status->DCDC_12V_out_voltage;
-      val.value = ss.str();
-      val.key = "DCDC12";
-      stat.values.push_back(val);
+      stat.add("DCDC12", status->DCDC_12V_out_voltage);
+      
       ROS_DEBUG("  DCDC 15     = %f", status->DCDC_19V_out_voltage);
-      ss.str("");
-      ss << status->DCDC_19V_out_voltage;
-      val.value = ss.str();
-      val.key = "DCDC 15";
-      stat.values.push_back(val);
+      stat.add("DCDC 15", status->DCDC_19V_out_voltage);
+      
       ROS_DEBUG("  CB0 (Base)  = %f", status->CB0_voltage);
-      ss.str("");
-      ss << status->CB0_voltage;
-      val.value = ss.str();
-      val.key = "Breaker 0 Voltage";
-      stat.values.push_back(val);
+      stat.add("Breaker 0 Voltage", status->CB0_voltage);
+      
       ROS_DEBUG("  CB1 (R-arm) = %f", status->CB1_voltage);
-      ss.str("");
-      ss << status->CB1_voltage;
-      val.value = ss.str();
-      val.key = "Breaker 1 Voltage";
-      stat.values.push_back(val);
+      stat.add("Breaker 1 Voltage", status->CB1_voltage);
+      
       ROS_DEBUG("  CB2 (L-arm) = %f", status->CB2_voltage);
-      ss.str("");
-      ss << status->CB2_voltage;
-      val.value = ss.str();
-      val.key = "Breaker 2 Voltage";
-      stat.values.push_back(val);
+      stat.add("Breaker 2 Voltage", status->CB2_voltage);
 
       ROS_DEBUG(" Board Temp   = %f", status->ambient_temp);
-      ss.str("");
-      ss << status->ambient_temp;
-      val.value = ss.str();
-      val.key = "Board Temperature";
-      stat.values.push_back(val);
+      stat.add("Board Temperature", status->ambient_temp);
+      
       ROS_DEBUG(" Fan Speeds:");
       ROS_DEBUG("  Fan 0       = %u", status->fan0_speed);
-      ss.str("");
-      ss << status->fan0_speed;
-      val.value = ss.str();
-      val.key = "Fan 0 Speed";
-      stat.values.push_back(val);
+      stat.add("Fan 0 Speed", status->fan0_speed);
+      
       ROS_DEBUG("  Fan 1       = %u", status->fan1_speed);
-      ss.str("");
-      ss << status->fan1_speed;
-      val.value = ss.str();
-      val.key = "Fan 1 Speed";
-      stat.values.push_back(val);
+      stat.add("Fan 1 Speed", status->fan1_speed);
+      
       ROS_DEBUG("  Fan 2       = %u", status->fan2_speed);
-      ss.str("");
-      ss << status->fan2_speed;
-      val.value = ss.str();
-      val.key = "Fan 2 Speed";
-      stat.values.push_back(val);
+      stat.add("Fan 2 Speed", status->fan2_speed);
+      
       ROS_DEBUG("  Fan 3       = %u", status->fan3_speed);
-      ss.str("");
-      ss << status->fan3_speed;
-      val.value = ss.str();
-      val.key = "Fan 3 Speed";
-      stat.values.push_back(val);
+      stat.add("Fan 3 Speed", status->fan3_speed);
 
       ROS_DEBUG(" State:");
       ROS_DEBUG("  CB0 (Base)  = %s", cb_state_to_str(status->CB0_state));
-      ss.str("");
-      ss << cb_state_to_str(status->CB0_state);
-      val.value = ss.str();
-      val.key = "Breaker 0 State";
-      stat.values.push_back(val);
+      stat.add("Breaker 0 State", cb_state_to_str(status->CB0_state));
+
       ROS_DEBUG("  CB1 (R-arm) = %s", cb_state_to_str(status->CB1_state));
-      ss.str("");
-      ss << cb_state_to_str(status->CB1_state);
-      val.value = ss.str();
-      val.key = "Breaker 1 State";
-      stat.values.push_back(val);
+      stat.add("Breaker 1 State", cb_state_to_str(status->CB1_state));
+
       ROS_DEBUG("  CB2 (L-arm) = %s", cb_state_to_str(status->CB2_state));
-      val.value = cb_state_to_str(status->CB2_state);
-      val.key = "Breaker 2 State";
-      stat.values.push_back(val);
+      stat.add("Breaker 2 State", cb_state_to_str(status->CB2_state));
+      
       ROS_DEBUG("  DCDC        = %s", master_state_to_str(status->DCDC_state));
-      val.value = master_state_to_str(status->DCDC_state);
-      val.key = "DCDC state";
-      stat.values.push_back(val);
+      stat.add("DCDC state", master_state_to_str(status->DCDC_state));
 
       ROS_DEBUG(" Status:");
       ROS_DEBUG("  CB0 (Base)  = %s", (status->CB0_status) ? "On" : "Off");
-      val.value = (status->CB0_status) ? "On" : "Off";
-      val.key = "Breaker 0 Status";
-      stat.values.push_back(val);
+      stat.add("Breaker 0 Status", (status->CB0_status) ? "On" : "Off");
+      
       ROS_DEBUG("  CB1 (R-arm) = %s", (status->CB1_status) ? "On" : "Off");
-      val.value = (status->CB1_status) ? "On" : "Off";
-      val.key = "Breaker 1 Status";
-      stat.values.push_back(val);
+      stat.add("Breaker 1 Status", (status->CB1_status) ? "On" : "Off");
+      
       ROS_DEBUG("  CB2 (L-arm) = %s", (status->CB2_status) ? "On" : "Off");
-      val.value = (status->CB2_status) ? "On" : "Off";
-      val.key = "Breaker 2 Status";
-      stat.values.push_back(val);
+      stat.add("Breaker 2 Status", (status->CB2_status) ? "On" : "Off");
+      
       ROS_DEBUG("  estop_button= %x", (status->estop_button_status));
-      ss.str("");
-      ss << status->estop_button_status;
-      val.value = ss.str();
-      val.key = "RunStop Button Status";
-      stat.values.push_back(val);
+      stat.add("RunStop Button Status", status->estop_button_status);
+      
       ROS_DEBUG("  estop_status= %x", (status->estop_status));
-      ss.str("");
-      ss << status->estop_status;
-      val.value = ss.str();
-      val.key = "RunStop Status";
-      stat.values.push_back(val);
+      stat.add("RunStop Status", status->estop_status);
 
       ROS_DEBUG(" Revisions:");
       ROS_DEBUG("         PCA = %c", status->pca_rev);
-      ss.str("");
-      ss << status->pca_rev;
-      val.value = ss.str();
-      val.key = "PCA";
-      stat.values.push_back(val);
+      stat.add("PCA", status->pca_rev);
+
       ROS_DEBUG("         PCB = %c", status->pcb_rev);
-      ss.str("");
-      ss << status->pcb_rev;
-      val.value = ss.str();
-      val.key = "PCB";
-      stat.values.push_back(val);
+      stat.add("PCB", status->pcb_rev);
+
       ROS_DEBUG("       Major = %c", status->major_rev);
-      ss.str("");
-      ss << status->major_rev;
-      val.value = ss.str();
-      val.key = "Major Revision";
-      stat.values.push_back(val);
+      stat.add("Major Revision", status->major_rev);
+      
       ROS_DEBUG("       Minor = %c", status->minor_rev);
-      ss.str("");
-      ss << status->minor_rev;
-      val.value = ss.str();
-      val.key = "Minor Revision";
-      stat.values.push_back(val);
+      stat.add("Minor Revision", status->minor_rev);
 
-      ss.str("");
-      ss << status->min_input_voltage;
-      val.value = ss.str();
-      val.key = "Min Voltage";
-      stat.values.push_back(val);
-      ss.str("");
-      ss << status->max_input_current;
-      val.value = ss.str();
-      val.key = "Max Current";
-      stat.values.push_back(val);
-
+      stat.add("Min Voltage", status->min_input_voltage);
+      stat.add("Max Current", status->max_input_current);
 
       const TransitionMessage *tmsg = &device->getTransitionMessage();
       for(int cb_index=0; cb_index < 3; ++cb_index)
@@ -854,61 +765,36 @@ void PowerBoard::sendDiagnostic()
         const TransitionCount *trans = &tmsg->cb[cb_index];
         ROS_DEBUG("Transition: CB%d", cb_index);
         ss.str("");
-        ss << trans->stop_count;
-        val.value = ss.str();
-        ss.str("");
         ss << "CB" << cb_index << " Stop Count";
-        val.key = ss.str();
-        stat.values.push_back(val);
-      ss.str("");
-      ss << trans->estop_count;
-        val.value = ss.str();
+        stat.add(ss.str(), trans->stop_count);
+        
         ss.str("");
         ss << "CB" << cb_index << " E-Stop Count";
-        val.key = ss.str();
-        stat.values.push_back(val);
-      ss.str("");
-      ss << trans->trip_count;
-        val.value = ss.str();
+        stat.add(ss.str(), trans->estop_count);
+        
         ss.str("");
         ss << "CB" << cb_index << " Trip Count";
-        val.key = ss.str();
-        stat.values.push_back(val);
-      ss.str("");
-      ss << trans->fail_18V_count;
-        val.value = ss.str();
+        stat.add(ss.str(), trans->trip_count);
+        
         ss.str("");
         ss << "CB" << cb_index << " 18V Fail Count";
-        val.key = ss.str();
-        stat.values.push_back(val);
-      ss.str("");
-      ss << trans->disable_count;
-        val.value = ss.str();
+        stat.add(ss.str(), trans->fail_18V_count);
+      
         ss.str("");
         ss << "CB" << cb_index << " Disable Count";
-        val.key = ss.str();
-        stat.values.push_back(val);
-      ss.str("");
-      ss << trans->start_count;
-        val.value = ss.str();
+        stat.add(ss.str(), trans->disable_count);
+      
         ss.str("");
         ss << "CB" << cb_index << " Start Count";
-        val.key = ss.str();
-        stat.values.push_back(val);
-      ss.str("");
-      ss << trans->pump_fail_count;
-        val.value = ss.str();
+        stat.add(ss.str(), trans->start_count);
+      
         ss.str("");
         ss << "CB" << cb_index << " Pump Fail Count";
-        val.key = ss.str();
-        stat.values.push_back(val);
-      ss.str("");
-      ss << trans->reset_count;
-      val.value = ss.str();
+        stat.add(ss.str(), trans->pump_fail_count);
+      
         ss.str("");
         ss << "CB" << cb_index << " Reset Count";
-        val.key = ss.str();
-        stat.values.push_back(val);
+        stat.add(ss.str(), trans->reset_count);
       }
 
       msg_out.status.push_back(stat);

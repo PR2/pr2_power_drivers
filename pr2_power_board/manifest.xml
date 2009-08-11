@@ -5,6 +5,7 @@
   <review status="API cleared" notes=""/>
   <depend package="roscpp" />
   <depend package="rospy" />
+  <depend package="diagnostic_updater" />
   <depend package="diagnostic_msgs" />
   <export> 
     <cpp cflags="-I${prefix}/srv/cpp" />   
