@@ -337,7 +337,7 @@ int PowerBoard::send_command(unsigned int serial_number, int circuit_breaker, co
   // Build command message
   CommandMessage cmdmsg;
   memset(&cmdmsg, 0, sizeof(cmdmsg));
-  cmdmsg.header.message_revision = device->getPowerMessage().header.message_revision;
+  cmdmsg.header.message_revision = COMMAND_MESSAGE_REVISION;
   cmdmsg.header.message_id = MESSAGE_ID_COMMAND;
   cmdmsg.header.serial_num = device->getPowerMessage().header.serial_num;
   //cmdmsg.header.serial_num = 0x12345678;
