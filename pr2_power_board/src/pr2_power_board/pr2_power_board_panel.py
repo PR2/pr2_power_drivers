@@ -179,18 +179,9 @@ class PowerBoardPanel(wx.Panel):
                         if (value.key == "Breaker 2 Voltage"):
                             self.voltages[2] = value.value
                         if (value.key == "RunStop Button Status"):
-                            if value.value > 0.5:
-                                self.estop_wireless_status = "Run"
-                            else:
-                                self.estop_wireless_status = "Stop"
+                            self.estop_wireless_status = value.value
                         if (value.key == "RunStop Status"):
-                            if value.value > 0.5:
-                                self.estop_button_status = "Run"
-                            else:
-                                if self.estop_wireless_status == "Stop":
-                                    self.estop_button_status = "Unknown"
-                                else:
-                                    self.estop_button_status = "Stop"
+                            self.estop_button_status = value.value
 
                     for strvals in status.values:
                         if (strvals.key == "Breaker 0 State"):
@@ -229,7 +220,7 @@ class PowerBoardPanel(wx.Panel):
                     else:
                         self.breaker2_status.SetBackgroundColour("Red")
 
-                    if self.estop_button_status == "Stop" or  self.estop_wireless_status == "Stop":
+                    if self.estop_button_status == "False" or  self.estop_wireless_status == "False":
                         estop_status_temp = "Stop"
                         self.estop_status.SetBackgroundColour("Red")
                     else:
