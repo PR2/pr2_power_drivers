@@ -30,7 +30,13 @@
 #ifndef POWER_COMM_H
 #define POWER_COMM_H
 
-static const unsigned CURRENT_MESSAGE_REVISION = 2;
+static const unsigned CURRENT_MESSAGE_REVISION = 3;
+#define CURRENT_MESSAGE_SIZE (sizeof(PowerMessage))
+static const unsigned MINIMUM_MESSAGE_REVISION = 2;
+#define REVISION_2_MESSAGE_SIZE (sizeof(MessageHeader) + sizeof(StatusStruct_Rev2))
+
+static const unsigned TRANSITION_MESSAGE_REVISION = 2;
+
 static const unsigned MESSAGE_ID_POWER = 0;
 static const unsigned MESSAGE_ID_COMMAND = 1;
 static const unsigned MESSAGE_ID_TRANSITION = 2;
@@ -48,6 +54,43 @@ typedef struct
   unsigned int    message_id;
   unsigned int    data_length;      //Length of the following structure
 } __attribute__((__packed__)) MessageHeader;
+
+typedef struct
+{
+  //Software State  0 = default, 1=Start, 2=Stop, 3=reset, 4=disable
+  unsigned char   CB0_state;
+  unsigned char   CB1_state;
+  unsigned char   CB2_state;
+  unsigned char   DCDC_state;  // 1=on, 0=off
+
+  //Status
+  float           input_voltage;
+  float           input_current;
+  float           DCDC_12V_aux;
+  float           DCDC_12V_cpu0;
+  float           CB0_voltage;
+  float           CB1_voltage;
+  float           CB2_voltage;
+  float           ambient_temp;
+  unsigned int    fan0_speed;
+  unsigned int    fan1_speed;
+  unsigned int    fan2_speed;
+  unsigned int    fan3_speed;
+  unsigned char   CB0_status;
+  unsigned char   CB1_status;
+  unsigned char   CB2_status;
+  unsigned char   estop_button_status;
+  unsigned char   estop_status;
+  unsigned char   pca_rev;
+  unsigned char   pcb_rev;
+  unsigned char   major_rev;
+  unsigned char   minor_rev;
+  float           min_input_voltage;
+  float           max_input_current;
+  float           DCDC_12V_cpu1;
+  float           DCDC_12V_user;
+  float           battery_voltage[4];
+} __attribute__((__packed__)) StatusStruct;
 
 typedef struct
 {
@@ -82,7 +125,7 @@ typedef struct
   float           min_input_voltage;
   float           max_input_current;
 
-} __attribute__((__packed__)) StatusStruct;
+} __attribute__((__packed__)) StatusStruct_Rev2;
 
 typedef struct 
 {

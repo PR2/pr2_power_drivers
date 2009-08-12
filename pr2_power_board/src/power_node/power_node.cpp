@@ -123,7 +123,16 @@ if (pmsg.status.val##_status != newpmsg.status.val##_status)                    
   else
     pmsgset = 1;
 
-  pmsg = newpmsg;
+  if(newpmsg.header.message_revision == 2) //migrate old messages to new structure
+  {
+    memcpy( &pmsg.header, &newpmsg.header, sizeof(MessageHeader));
+
+    //Copy the contents of the Rev2 message into the current structure.
+    memcpy( &pmsg.status, &newpmsg.status, sizeof(StatusStruct_Rev2));
+  }
+  else
+    pmsg = newpmsg;
+
 }
 
 Interface::Interface(const char* ifname) :
@@ -413,12 +422,19 @@ const char* PowerBoard::master_state_to_str(char state)
 // Determine if a record of the device already exists...
 // If it does use newest message a fill in pointer to old one .
 // If it does not.. use
-int PowerBoard::process_message(const PowerMessage *msg)
+int PowerBoard::process_message(const PowerMessage *msg, int len)
 {
-  if (msg->header.message_revision != CURRENT_MESSAGE_REVISION) {
+  if ((msg->header.message_revision > CURRENT_MESSAGE_REVISION) || (msg->header.message_revision < MINIMUM_MESSAGE_REVISION)) {
     ROS_WARN("Got message with incorrect message revision %u\n", msg->header.message_revision);
     return -1;
   }
+
+  if ((msg->header.message_revision == CURRENT_MESSAGE_REVISION) && (len != CURRENT_MESSAGE_SIZE))
+    ROS_ERROR("recieved message of incorrect size %d for rev=%d\n", len, msg->header.message_revision);
+
+  if ((msg->header.message_revision == MINIMUM_MESSAGE_REVISION) && (len != REVISION_2_MESSAGE_SIZE))
+    ROS_ERROR("recieved message of incorrect size %d for rev=%d\n", len, msg->header.message_revision);
+
 
   // Look for device serial number in list of devices...
   if(serial_number != 0)  // when a specific serial is called out, ignore everything else
@@ -451,11 +467,16 @@ int PowerBoard::process_message(const PowerMessage *msg)
   return 0;
 }
 
-int PowerBoard::process_transition_message(const TransitionMessage *msg)
+int PowerBoard::process_transition_message(const TransitionMessage *msg, int len)
 {
-  if (msg->header.message_revision != CURRENT_MESSAGE_REVISION) {
+  if (msg->header.message_revision != TRANSITION_MESSAGE_REVISION) {
     ROS_WARN("Got message with incorrect message revision %u\n", msg->header.message_revision);
     return -1;
+  }
+
+  if (len != sizeof(TransitionMessage)) {
+    ROS_ERROR("recieved message of incorrect size %d\n", len);
+    return -2;
   }
 
   // Look for device serial number in list of devices...
@@ -557,11 +578,13 @@ int PowerBoard::collect_messages()
             ROS_ERROR("Error recieving on socket");
             return -1;
           }
+/*
           else if (len != (int)sizeof(PowerMessage)) {
             ROS_ERROR("recieved message of incorrect size %d\n", len);
           }
+*/
           else {
-            if (process_message(power_msg))
+            if (process_message(power_msg, len))
               return -1;
           }
         }
@@ -572,11 +595,8 @@ int PowerBoard::collect_messages()
             ROS_ERROR("Error recieving on socket");
             return -1;
           }
-          else if (len != sizeof(TransitionMessage)) {
-            ROS_ERROR("recieved message of incorrect size %d\n", len);
-          }
           else {
-            if (process_transition_message(transition_msg))
+            if (process_transition_message(transition_msg, len))
               return -1;
           }
         }
@@ -599,6 +619,7 @@ PowerBoard::PowerBoard( const ros::NodeHandle node_handle, unsigned int serial_n
 {
   ROSCONSOLE_AUTOINIT;
   log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
+  fprintf(stderr, "Logger Name: %s\n", ROSCONSOLE_DEFAULT_NAME);
 
   if( my_logger->getLevel() == 0 )    //has anyone set our level??
   {
@@ -683,11 +704,11 @@ void PowerBoard::sendDiagnostic()
       ROS_DEBUG("  Input       = %f", status->input_voltage);
       stat.add("Input Voltage", status->input_voltage);
       
-      ROS_DEBUG("  DCDC 12     = %f", status->DCDC_12V_out_voltage);
-      stat.add("DCDC12", status->DCDC_12V_out_voltage);
+      ROS_DEBUG("  DCDC 12 aux = %f", status->DCDC_12V_aux);
+      stat.add("DCDC 12V aux", status->DCDC_12V_aux);
       
-      ROS_DEBUG("  DCDC 15     = %f", status->DCDC_19V_out_voltage);
-      stat.add("DCDC 15", status->DCDC_19V_out_voltage);
+      ROS_DEBUG("  DCDC 12V cpu0   = %f", status->DCDC_12V_cpu0);
+      stat.add("DCDC 12V cpu0", status->DCDC_12V_cpu0);
       
       ROS_DEBUG("  CB0 (Base)  = %f", status->CB0_voltage);
       stat.add("Breaker 0 Voltage", status->CB0_voltage);
@@ -738,10 +759,10 @@ void PowerBoard::sendDiagnostic()
       stat.add("Breaker 2 Status", (status->CB2_status) ? "On" : "Off");
       
       ROS_DEBUG("  estop_button= %x", (status->estop_button_status));
-      stat.add("RunStop Button Status", status->estop_button_status);
+      stat.add("RunStop Button Status", (status->estop_button_status ? "True":"False"));
       
       ROS_DEBUG("  estop_status= %x", (status->estop_status));
-      stat.add("RunStop Status", status->estop_status);
+      stat.add("RunStop Status", (status->estop_status ? "True":"False"));
 
       ROS_DEBUG(" Revisions:");
       ROS_DEBUG("         PCA = %c", status->pca_rev);
@@ -759,6 +780,21 @@ void PowerBoard::sendDiagnostic()
       stat.add("Min Voltage", status->min_input_voltage);
       stat.add("Max Current", status->max_input_current);
 
+      ROS_DEBUG("  DCDC 12V cpu1   = %f", status->DCDC_12V_cpu1);
+      stat.add("DCDC 12V cpu1", status->DCDC_12V_cpu1);
+
+      ROS_DEBUG("  DCDC 12V user   = %f", status->DCDC_12V_user);
+      stat.add("DCDC 12V user", status->DCDC_12V_user);
+      
+      for( int xx = 0; xx < 4; ++xx)
+      {
+        ROS_DEBUG("  Battery %d voltage=%f", xx, status->battery_voltage[xx]);
+        ss.str("");
+        ss << "Battery " << xx << " voltage=";
+        stat.add(ss.str(), status->battery_voltage[xx]);
+      }
+      
+      
       const TransitionMessage *tmsg = &device->getTransitionMessage();
       for(int cb_index=0; cb_index < 3; ++cb_index)
       {
@@ -766,35 +802,36 @@ void PowerBoard::sendDiagnostic()
         ROS_DEBUG("Transition: CB%d", cb_index);
         ss.str("");
         ss << "CB" << cb_index << " Stop Count";
-        stat.add(ss.str(), trans->stop_count);
+        stat.add(ss.str(), (int)trans->stop_count);
+        //ROS_DEBUG("  Stop Count=%d", trans->stop_count);
         
         ss.str("");
         ss << "CB" << cb_index << " E-Stop Count";
-        stat.add(ss.str(), trans->estop_count);
+        stat.add(ss.str(), (int)trans->estop_count);
         
         ss.str("");
         ss << "CB" << cb_index << " Trip Count";
-        stat.add(ss.str(), trans->trip_count);
+        stat.add(ss.str(), (int)trans->trip_count);
         
         ss.str("");
         ss << "CB" << cb_index << " 18V Fail Count";
-        stat.add(ss.str(), trans->fail_18V_count);
+        stat.add(ss.str(), (int)trans->fail_18V_count);
       
         ss.str("");
         ss << "CB" << cb_index << " Disable Count";
-        stat.add(ss.str(), trans->disable_count);
+        stat.add(ss.str(), (int)trans->disable_count);
       
         ss.str("");
         ss << "CB" << cb_index << " Start Count";
-        stat.add(ss.str(), trans->start_count);
+        stat.add(ss.str(), (int)trans->start_count);
       
         ss.str("");
         ss << "CB" << cb_index << " Pump Fail Count";
-        stat.add(ss.str(), trans->pump_fail_count);
+        stat.add(ss.str(), (int)trans->pump_fail_count);
       
         ss.str("");
         ss << "CB" << cb_index << " Reset Count";
-        stat.add(ss.str(), trans->reset_count);
+        stat.add(ss.str(), (int)trans->reset_count);
       }
 
       msg_out.status.push_back(stat);
@@ -974,3 +1011,11 @@ int main(int argc, char** argv)
   return 0;
 
 }
+
+Device::Device(): message_time(0,0)
+{ 
+  pmsgset = false; 
+  tmsgset = false; 
+  memset( &pmsg, 0, sizeof(PowerMessage)); 
+  memset( &tmsg, 0, sizeof(TransitionMessage)); 
+};

@@ -41,7 +41,7 @@ class Device
     }
     void setPowerMessage(const PowerMessage &newpmsg);
     
-    Device(): message_time(0,0) { pmsgset = false; tmsgset = false; };
+    Device();
     ~Device() { };
   private:
     bool tmsgset;
@@ -62,8 +62,8 @@ class PowerBoard
     void collectMessages();
     void sendDiagnostic();
     int collect_messages();
-    int process_message(const PowerMessage *msg);
-    int process_transition_message(const TransitionMessage *msg);
+    int process_message(const PowerMessage *msg, int len);
+    int process_transition_message(const TransitionMessage *msg, int len);
     const char* master_state_to_str(char state);
     const char* cb_state_to_str(char state);
     int list_devices(void);
