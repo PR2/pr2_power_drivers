@@ -1,6 +1,6 @@
 <package>
-  <description>This is a driver for the PR2 Power Board</description>
-  <author>Tully Foote</author>
+  <description>This provides a ros node for the PR2 Power Board</description>
+  <author>Curt Meyers, Blaise Gassend</author>
   <license>BSD</license>
   <review status="API cleared" notes=""/>
   <depend package="roscpp" />
