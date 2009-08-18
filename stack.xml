@@ -1,0 +1,15 @@
+<stack name="pr2_power_drivers" version="0.1.0">
+  <description brief="pr2_power_drivers">
+
+     pr2_power_drivers
+
+  </description>
+  <author>Maintained by Blaise Gassend</author>
+  <license>BSD</license>  
+  <review status="unreviewed" notes=""/>
+  <url>http://pr.willowgarage.com/wiki/pr2_power_drivers</url>
+  <depend stack="hardware_test"/> <!-- diagnostic_updater --> 
+  <depend stack="ros"/> <!-- rospy, roscpp --> 
+  <depend stack="common_msgs"/> <!-- diagnostic_msgs --> 
+
+</stack>
