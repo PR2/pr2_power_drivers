@@ -8,8 +8,9 @@
   <license>BSD</license>  
   <review status="unreviewed" notes=""/>
   <url>http://pr.willowgarage.com/wiki/pr2_power_drivers</url>
-  <depend stack="hardware_test"/> <!-- diagnostic_updater --> 
+  <depend stack="diagnostics"/> <!-- diagnostic_updater --> 
   <depend stack="ros"/> <!-- rospy, roscpp --> 
   <depend stack="common_msgs"/> <!-- diagnostic_msgs --> 
+  <depend stack="pr2_common"/>
 
 </stack>
