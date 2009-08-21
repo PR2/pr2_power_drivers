@@ -60,7 +60,7 @@ class PowerBoard
 
     void init();
     void collectMessages();
-    void sendDiagnostic();
+    void sendMessages();
     int collect_messages();
     int process_message(const PowerMessage *msg, int len);
     int process_transition_message(const TransitionMessage *msg, int len);
@@ -72,7 +72,8 @@ class PowerBoard
   private:
     ros::NodeHandle node_handle;
     ros::ServiceServer service;
-    ros::Publisher pub;
+    ros::Publisher diags_pub;
+    ros::Publisher state_pub;
 
     pr2_power_board::PowerBoardCommand::Request req_;
     pr2_power_board::PowerBoardCommand::Response res_;

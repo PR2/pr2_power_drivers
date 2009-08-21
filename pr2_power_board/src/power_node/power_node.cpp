@@ -56,6 +56,7 @@
 #include "power_node.h"
 #include "diagnostic_msgs/DiagnosticArray.h"
 #include "diagnostic_updater/DiagnosticStatusWrapper.h"
+#include "pr2_msgs/PowerBoardState.h"
 #include "rosconsole/macros_generated.h"
 #include "ros/ros.h"
 
@@ -641,7 +642,8 @@ void PowerBoard::init()
 
   service = node_handle.advertiseService("power_board_control", &PowerBoard::commandCallback, this);
 
-  pub = node_handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
+  diags_pub = node_handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
+  state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("/power_board_state", 2);
 }
 
 bool PowerBoard::commandCallback(pr2_power_board::PowerBoardCommand::Request &req_,
@@ -661,7 +663,7 @@ void PowerBoard::collectMessages()
   }
 }
 
-void PowerBoard::sendDiagnostic()
+void PowerBoard::sendMessages()
 {
   ros::Rate r(1);
   while(node_handle.ok())
@@ -837,9 +839,20 @@ void PowerBoard::sendDiagnostic()
       msg_out.status.push_back(stat);
 
       //ROS_DEBUG("Publishing ");
-      pub.publish(msg_out);
-    }
+      diags_pub.publish(msg_out);
 
+      pr2_msgs::PowerBoardState state_msg;
+      state_msg.name = stat.name;
+      state_msg.circuit_voltage[0] = status->CB0_voltage;
+      state_msg.circuit_voltage[1] = status->CB1_voltage;
+      state_msg.circuit_voltage[2] = status->CB2_voltage;
+      state_msg.circuit_state[0] = status->CB0_state;
+      state_msg.circuit_state[1] = status->CB1_state;
+      state_msg.circuit_state[2] = status->CB2_state;
+      state_msg.run_stop = status->estop_status;
+      state_msg.wireless_stop = status->estop_button_status;
+      state_pub.publish(state_msg);
+    }
   }
 }
 
@@ -850,7 +863,7 @@ void getMessages()
 
 void sendMessages()
 {
-  myBoard->sendDiagnostic();
+  myBoard->sendMessages();
 }
 
 // CloseAll

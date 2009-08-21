@@ -7,6 +7,7 @@
   <depend package="rospy" />
   <depend package="diagnostic_updater" />
   <depend package="diagnostic_msgs" />
+  <depend package="pr2_msgs" />
   <export> 
     <cpp cflags="-I${prefix}/srv/cpp" />   
   </export> 
