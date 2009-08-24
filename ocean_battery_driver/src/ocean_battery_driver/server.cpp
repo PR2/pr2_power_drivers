@@ -75,21 +75,11 @@ int main(int argc, char** argv)
       stat.level = 0;
       stat.message = "OK";
       
-      ss.str("");
-      ss << os.timeLeft;
-      stat.add("Time Remaining (min)", ss.str());
-      ss.str("");
-      ss << os.averageCharge;
-      stat.add("Average charge (percent)", ss.str() );
-      ss.str("");
-      ss << "0";
-      stat.add("Current (A)", ss.str());
-      ss.str("");
-      ss << "0";
-      stat.add("Voltage (V)", ss.str());
-      ss.str("");
-      ss << os.lastTimeSystem;
-      stat.add("Time since update (s)", ss.str());
+      stat.add("Time Remaining (min)", os.timeLeft);
+      stat.add("Average charge (percent)", os.averageCharge );
+      stat.add("Current (A)", 0);
+      stat.add("Voltage (V)", 0);
+      stat.add("Time since update (s)", os.lastTimeSystem);
 
 
       msg_out.status.push_back(stat);
