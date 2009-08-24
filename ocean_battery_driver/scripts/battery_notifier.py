@@ -38,22 +38,22 @@
 import roslib
 roslib.load_manifest('ocean_battery_driver')
 import rospy
-from pr2_msgs.msg import BatteryState
+from pr2_msgs.msg import PowerState
 import os, sys
 
 class BatteryNotifier:
   def __init__(self, notify_limit, state_topic, email_addresses, robot_name, mail_program):
     self.notify_limit = notify_limit
     rospy.init_node("battery_notifier", anonymous=True)
-    rospy.Subscriber(state_topic, BatteryState, self.update)
+    rospy.Subscriber(state_topic, PowerState, self.update)
     self.email_addresses = email_addresses
     self.mail_program = mail_program
     self.robot_name = robot_name
     self.mail_sent = False
 
   def update(self, state):
-    if(state.energy_capacity == 0 or (state.energy_remaining / state.energy_capacity) <= self.notify_limit):
-      if not self.mail_sent and state.power_consumption < 0.0: 
+    if(state.time_remaining == 0 or (state.time_remaining <= self.notify_limit)):
+      if not self.mail_sent and state.power_consumption < 0.0:  # negative means we are discharging
         self.sendEmail()
         self.mail_sent = True
     else:
@@ -63,7 +63,7 @@ class BatteryNotifier:
     mail_string = "To: "
     for address in self.email_addresses: mail_string += address + ", "
     mail_string += "\nFrom: %s@willowgarage.com" % self.robot_name
-    mail_string += "\nSubject: Battery level on robot below %.2f" % self.notify_limit
+    mail_string += "\nSubject: Battery level on robot below %d" % self.notify_limit
     mail_string += "\n\nMy battery level has fallen below the notification level. You should probably think about plugging me in. \n\nThanks much,\n%s" % self.robot_name
 
     #since the robot's have mail servers installed on them... we'll just pipe out our e-mail
