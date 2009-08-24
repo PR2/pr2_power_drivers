@@ -69,9 +69,10 @@ const unsigned ocean::regListLength(sizeof(regList)/ sizeof(struct regPair));
  * the GPS.
  */
 
-ocean::ocean ( int debug)
+ocean::ocean ( int id,  int debug)
 {
   debuglevel = debug;
+  server.id = id;
   server.battery.resize(4);
 }
 

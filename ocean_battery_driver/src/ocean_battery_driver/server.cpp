@@ -23,8 +23,6 @@ using namespace ros;
 using namespace willowgarage::ocean;
 namespace po = boost::program_options;
 
-boost::mutex data_lock;
-
 float toFloat(const int &value)
 {
   int tmp = value;
@@ -79,12 +77,6 @@ class server
       myThread->join();
     }
 
-    float getVoltage(int bat)
-    {
-      boost::mutex::scoped_lock lock(data_lock);
-      return battery_voltage[bat];
-    }
-
   private:
 
     ros::NodeHandle handle;
@@ -93,7 +85,6 @@ class server
     std::string serial_device;
     volatile bool stopRequest;
     boost::shared_ptr<boost::thread> myThread;
-    float battery_voltage[4];
 
     void run()
     {
@@ -111,7 +102,7 @@ class server
       diagnostic_updater::DiagnosticStatusWrapper stat;
       Time lastTime, currentTime;
       Duration MESSAGE_TIME(10,0);    //the message output rate
-      ocean os(debug_level);
+      ocean os( majorID, debug_level);
       os.initialize(serial_device.c_str());
 
       lastTime = Time::now();
@@ -138,7 +129,6 @@ class server
           stat.level = 0;
           stat.message = "OK";
           
-#if 1
           stat.add("Time Remaining (min)", os.server.timeLeft);
           stat.add("Average charge (percent)", os.server.averageCharge );
           stat.add("Time since update (s)", (currentTime.sec - os.server.lastTimeSystem));
@@ -182,15 +172,8 @@ class server
 
               msg_out.status.push_back(stat);
 
-#if 1
-              {
-                boost::mutex::scoped_lock lock(data_lock);
-                battery_voltage[xx] = toFloat(os.server.battery[xx].batReg[0x9]);
-              } //end mutex lock
-#endif
             }
           }
-#endif
 
           pub.publish(msg_out);
           msg_out.status.clear();

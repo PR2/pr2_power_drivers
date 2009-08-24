@@ -35,7 +35,7 @@ namespace willowgarage
       };
 
 
-      ocean (int debug = 0);
+      ocean (int id, int debug = 0);
       ~ocean ();
 
       int run ();

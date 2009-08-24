@@ -24,36 +24,77 @@ class PowerMonitor
 
     void batteryUpdate( const boost::shared_ptr<pr2_msgs::BatteryServer const> &bat)
     {
-      ROS_INFO("Received battery message: voltage=%f", toFloat(bat->battery[0].batReg[0x9]));
+      boost::mutex::scoped_lock lock(vLock);
+      ROS_DEBUG("Received battery message: voltage=%f", toFloat(bat->battery[0].batReg[0x9]));
+
+      batteryServers[bat->id] = bat;    //add results to our map
     };
 
-    void send()
+    void send(const ros::TimerEvent &e)
     {
-  #if 0
-      float min_voltage = server_list[0].getVoltage(0);
-      for(int xx = 1; xx < 4; ++xx)
-      {
-        if(server_list[0].getVoltage(xx) < min_voltage)
-          min_voltage = server_list[0].getVoltage(xx);
-      }
-      cout << "min_voltage=" << min_voltage << endl;
-  #endif
+      float min_voltage(1000.0);
+      int acCount(0);
+      //float totalCurrent[batteryServers.size()];
+      float totalPower(0.0);
+      unsigned int minTime(10000);
 
-      powerState.power_consumption = 0;
-      powerState.time_remaining = 60;
+      boost::mutex::scoped_lock lock(vLock);
+      map< int, boost::shared_ptr<pr2_msgs::BatteryServer const> >::iterator itr = batteryServers.begin();
+      for( ; itr != batteryServers.end(); ++itr )
+      {
+        const pr2_msgs::BatteryServer *bat = itr->second.get();
+
+        ROS_DEBUG("------------------------------------");
+        ROS_DEBUG("BATTERY  %d", bat->id);
+
+        if(bat->powerPresent  == 0xF)  //All four batteries show AC present
+          ++acCount;
+
+
+        for(unsigned int xx = 0; xx < bat->MAX_BAT_COUNT; ++xx)
+        {
+          float voltage = toFloat(bat->battery[xx].batReg[0x9]);
+          ROS_DEBUG(" voltage=%f", voltage);
+          if(voltage < min_voltage)
+            min_voltage = voltage;
+
+          float current = toFloat(bat->battery[xx].batReg[0xA]);
+          ROS_DEBUG(" current=%f", current);
+          ROS_DEBUG(" power=%f", current * voltage);
+          totalPower += (current * voltage);
+
+          unsigned tte = bat->battery[xx].batReg[0x12];
+          if(tte < minTime) //search for battery is least time remaining
+            minTime = tte;
+        }
+
+        //totalCurrent[bat->id] = tmpCurrent;
+        //cout << " totalCurrent=" << tmpCurrent << "\n";
+      }
+      ROS_DEBUG("PowerMonitor::min_voltage=%f", min_voltage);
+      ROS_DEBUG(" totalPower=%f", totalPower);
+
+      powerState.power_consumption = totalPower;
+      powerState.time_remaining = minTime;
       powerState.prediction_method = "fuel guage";
-      powerState.AC_present = 1;
+      powerState.AC_present = acCount;
 
       pub.publish(powerState);
     };
+
 
     PowerMonitor()
     { 
       //handle = new ros::NodeHandle();
       ros::NodeHandle handle;
+      double freq = 0.1;
+      handle.getParam("/power_monitor/frequency", freq, 0.1);
+
 
       pub = handle.advertise<pr2_msgs::PowerState>("power_state", 5);
       sub = handle.subscribe("battery/server", 10, &PowerMonitor::batteryUpdate, this);
+
+      timer = handle.createTimer(ros::Duration(1/freq), &PowerMonitor::send, this);
     };
 
 
@@ -61,6 +102,9 @@ class PowerMonitor
     pr2_msgs::PowerState  powerState;
     ros::Publisher pub;
     ros::Subscriber sub;
+    ros::Timer timer;
+    boost::mutex vLock;
+    std::map< int, boost::shared_ptr<pr2_msgs::BatteryServer const> > batteryServers;
 };
 
 int main(int argc, char** argv)
@@ -68,17 +112,8 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "power_monitor");
 
   PowerMonitor monitor;
-  ros::Rate rate(1);
-  ros::NodeHandle handle;
 
-  while(handle.ok())
-  {
-    rate.sleep();
-    ros::spinOnce();
+  ros::spin();
 
-
-    monitor.send();
-  }
-
-
+  return 0;
 }
