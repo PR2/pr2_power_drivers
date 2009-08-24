@@ -45,17 +45,24 @@ class server
       {
         string tmp_device;
         ss.str("");
+        ss << "/dev/ttyUSB" << majorID; //create a default device based on majorID
+        serial_device = ss.str();
+
+        ss.str("");
         ss << "/battery/port" << majorID;
         bool result = handle.getParam( ss.str(), tmp_device );
         if(result == true)
         {
-          cout << "Using " << ss.str() << " from getParam.\n";
+          ROS_INFO("Using %s from getParam.\n", ss.str().c_str());
           serial_device = tmp_device;
         }
+        else
+          ROS_INFO("Defaulting to: %s", serial_device.c_str());
+
       }
       else
       {
-        cout << "Overriding device with argument: " << dev << endl;
+        ROS_INFO("Overriding device with argument: %s", dev.c_str() );
         serial_device = dev;
       }
 
@@ -101,7 +108,7 @@ class server
       diagnostic_msgs::DiagnosticArray msg_out;
       diagnostic_updater::DiagnosticStatusWrapper stat;
       Time lastTime, currentTime;
-      Duration MESSAGE_TIME(10,0);    //the message output rate
+      Duration MESSAGE_TIME(2,0);    //the message output rate
       ocean os( majorID, debug_level);
       os.initialize(serial_device.c_str());
 
@@ -222,9 +229,9 @@ int main(int argc, char** argv)
 
   int max_ports(4);
   handle.getParam( "/battery/number_of_ports", max_ports );
-  cout << "number_of_ports=" << max_ports << endl;
+  ROS_INFO("number_of_ports=%d", max_ports);
   handle.getParam( "/battery/debug_level", debug_level );
-  cout << "debug_level=" << debug_level << endl;
+  ROS_DEBUG("debug_level=%d", debug_level);
 
   vector<server> server_list;
 
@@ -235,32 +242,6 @@ int main(int argc, char** argv)
     server_list[xx].start();
 
   ros::spin(); //wait for ros to shut us down
-#if 0
-  ros::Rate rate(1);
-  ros::Publisher pubBatteryState = handle.advertise<pr2_msgs::BatteryState>("battery_state", 5);
-  pr2_msgs::BatteryState  batteryState;
-
-  while(handle.ok())
-  {
-    rate.sleep();
-    ros::spinOnce();
-
-    float min_voltage = server_list[0].getVoltage(0);
-    for(int xx = 1; xx < 4; ++xx)
-    {
-      if(server_list[0].getVoltage(xx) < min_voltage)
-        min_voltage = server_list[0].getVoltage(xx);
-    }
-    cout << "min_voltage=" << min_voltage << endl;
-
-    batteryState.power_consumption = 0;
-    batteryState.time_remaining = 60;
-    batteryState.prediction_method = "fuel guage";
-    batteryState.AC_present = 1;
-
-    pubBatteryState.publish(batteryState);
-  }
-#endif
 
 
   for(int xx = 0; xx < max_ports; ++xx)
