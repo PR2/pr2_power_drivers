@@ -6,6 +6,7 @@
 #include <time.h>
 #include <boost/shared_ptr.hpp>
 #include <boost/bind.hpp>
+#include <boost/ref.hpp>
 #include <boost/program_options.hpp>
 #include <boost/thread/thread.hpp>
 
@@ -21,6 +22,8 @@ using namespace std;
 using namespace ros;
 using namespace willowgarage::ocean;
 namespace po = boost::program_options;
+
+boost::mutex data_lock;
 
 float toFloat(const int &value)
 {
@@ -76,6 +79,12 @@ class server
       myThread->join();
     }
 
+    float getVoltage(int bat)
+    {
+      boost::mutex::scoped_lock lock(data_lock);
+      return battery_voltage[bat];
+    }
+
   private:
 
     ros::NodeHandle handle;
@@ -84,30 +93,28 @@ class server
     std::string serial_device;
     volatile bool stopRequest;
     boost::shared_ptr<boost::thread> myThread;
+    float battery_voltage[4];
 
     void run()
     {
       std::stringstream ss;
-      ocean os( debug_level);
-
-      os.initialize(serial_device.c_str());
 
       ros::Publisher pub    = handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 1);
-      ros::Publisher pubBatteryState = handle.advertise<pr2_msgs::BatteryState>("battery_state", 1);
 
       ros::Rate rate(100);   //set the rate we scan the device for input
-      pr2_msgs::BatteryState  batteryState;
       diagnostic_msgs::DiagnosticArray msg_out;
       diagnostic_updater::DiagnosticStatusWrapper stat;
       Time lastTime, currentTime;
       Duration MESSAGE_TIME(10,0);    //the message output rate
+      ocean os(debug_level);
+      os.initialize(serial_device.c_str());
 
       lastTime = Time::now();
 
       while(handle.ok() && (stopRequest == false))
       {
         rate.sleep();
-        ros::spinOnce();
+        //ros::spinOnce();
         currentTime = Time::now();
 
         if((os.run() > 0) && ((currentTime - lastTime) > MESSAGE_TIME))
@@ -163,20 +170,18 @@ class server
               stat.add("Time since update (s)", (currentTime.sec - os.lastTimeBattery[xx]));
 
               msg_out.status.push_back(stat);
+
+#if 1
+              {
+                boost::mutex::scoped_lock lock(data_lock);
+                battery_voltage[xx] = toFloat(os.batReg[xx][0x9]);
+              } //end mutex lock
+#endif
             }
           }
 
           pub.publish(msg_out);
           msg_out.status.clear();
-
-#if 0
-          batteryState.power_consumption = 0;
-          batteryState.time_remaining = 60;
-          batteryState.prediction_method = "fuel guage";
-          batteryState.AC_present = 1;
-
-          pubBatteryState.publish(batteryState);
-#endif
 
         }
       }
@@ -234,7 +239,34 @@ int main(int argc, char** argv)
   for(int xx = 0; xx < max_ports; ++xx)
     server_list[xx].start();
 
-  ros::spin(); //wait for ros to shut us down
+  //ros::spin(); //wait for ros to shut us down
+#if 1
+  ros::Rate rate(1);
+  ros::Publisher pubBatteryState = handle.advertise<pr2_msgs::BatteryState>("battery_state", 1);
+  pr2_msgs::BatteryState  batteryState;
+
+  while(handle.ok())
+  {
+    rate.sleep();
+    ros::spinOnce();
+
+    float min_voltage = server_list[0].getVoltage(0);
+    for(int xx = 1; xx < 4; ++xx)
+    {
+      if(server_list[0].getVoltage(xx) < min_voltage)
+        min_voltage = server_list[0].getVoltage(xx);
+    }
+    cout << "min_voltage=" << min_voltage << endl;
+
+    batteryState.power_consumption = 0;
+    batteryState.time_remaining = 60;
+    batteryState.prediction_method = "fuel guage";
+    batteryState.AC_present = 1;
+
+    pubBatteryState.publish(batteryState);
+  }
+#endif
+
 
   for(int xx = 0; xx < max_ports; ++xx)
     server_list[xx].stop();

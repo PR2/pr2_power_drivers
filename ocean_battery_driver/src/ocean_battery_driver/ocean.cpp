@@ -79,7 +79,7 @@ ocean::~ocean ()
 {
   if (close (inputDevice) != 0)
   {
-    fprintf (stderr, "failed closing gps device: %s\n", strerror (errno));
+    fprintf (stderr, "failed closing serial device: %s\n", strerror (errno));
   }
 }
 
@@ -850,3 +850,4 @@ ocean::nmea_send (const char *fmt, ...)
     return -1;
   }
 }
+
