@@ -27,6 +27,43 @@ const int ocean::BAD_PACKET;
 const int ocean::NO_PACKET;
 const int ocean::NMEA_PACKET;
 
+//Battery Registers
+//Takend from the Smart Battery Data Specification Revision 1.1, Dec. 11, 1998
+//
+const struct ocean::regPair ocean::regList[] = {
+      {"manufacturerAccess"      ,""      , 0x00},
+      {"remainingCapacityAlarm"  ,""      , 0x01},
+      {"remainingTimeAlarm"      ,"min"   , 0x02},
+      {"batteryMode"             ,""      , 0x03},
+      {"atRate"                  ,"mA"    , 0x04},  //could also be mW
+      {"atRateTimeToFull"        ,"min"   , 0x05},
+      {"atRateTimeToEmpty"       ,"min"   , 0x06},
+      {"atRateOK"                ,"bool"  , 0x07},
+      {"temperature"             ,"0.1 K" , 0x08}, 
+      {"voltage"                 ,"mV"    , 0x09}, 
+      {"current"                 ,"mA"    , 0x0a}, 
+      {"averageCurrent"          ,"mA"    , 0x0b}, 
+      {"maxError"                ,"%"     , 0x0c}, 
+      {"relativeStateOfCharge"   ,"%"     , 0x0d},
+      {"absoluteStateOfCharge"   ,"%"     , 0x0e}, 
+      {"remainingCapacity"       ,"mAh"   , 0x0f},  //could also be mWh
+      {"fullChargeCapacity"      ,"mAh"   , 0x10},  //could also be mWh
+      {"runTimeToEmpty"          ,"min"   , 0x11}, 
+      {"averageTimeToEmpty"      ,"min"   , 0x12}, 
+      {"averageTimeToFull"       ,"min"   , 0x13}, 
+      {"batteryStatus"           ,""      , 0x16}, 
+      {"cycleCount"              ,"cycle" , 0x17}, 
+      {"designCapacity"          ,"mAh"   , 0x18}, //could also be mWh
+      {"designVoltage"           ,"mV"    , 0x19}, 
+      {"specificationInfo"       ,""      , 0x1a}, 
+      {"manufactureDate"         ,"DMY"   , 0x1b}, 
+      {"serialNumber"            ,"uint"  , 0x1c}, 
+      {"manufactureName"         ,"string", 0x20}, 
+      {"deviceName"              ,"string", 0x21}, 
+      {"deviceChemistry"         ,"string", 0x22}, 
+      {"manufactureData"         ,""      , 0x23}
+    };
+const unsigned ocean::regListLength(sizeof(regList)/ sizeof(struct regPair));
 /**
  * Open the required device and establish communications with
  * the GPS.

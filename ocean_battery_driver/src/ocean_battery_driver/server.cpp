@@ -3,8 +3,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <time.h>
-#include "ocean.h"
 #include <boost/program_options.hpp>
+#include <boost/thread/thread.hpp>
+
+#include "ocean.h"
 #include "ros/ros.h"
 #include "diagnostic_msgs/DiagnosticArray.h"
 #include "diagnostic_msgs/DiagnosticStatus.h"
@@ -12,6 +14,7 @@
 #include "rosconsole/macros_generated.h"
 
 using namespace std;
+using namespace ros;
 using namespace willowgarage::ocean;
 namespace po = boost::program_options;
 
@@ -45,6 +48,8 @@ int main(int argc, char** argv)
     return 1;
   }
 
+  majorId = serial_device.at(serial_device.length() - 1) - '0';
+
   ros::init(argc, argv, "ocean_server");
   ros::NodeHandle handle;
   
@@ -60,7 +65,7 @@ int main(int argc, char** argv)
 
   //
   //printf("device=%s  debug_level=%d\n", argv[1], atoi(argv[2]));
-  cout << "device=" << serial_device <<  "  debug_level=" << debug_level << endl;
+  //cout << "device=" << serial_device <<  "  debug_level=" << debug_level << endl;
 
   ocean os( debug_level);
 
@@ -69,18 +74,27 @@ int main(int argc, char** argv)
   ros::Publisher pub = handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
 
   ros::Rate rate(10);   //set the rate we scan the device for input
+  diagnostic_msgs::DiagnosticArray msg_out;
+  diagnostic_updater::DiagnosticStatusWrapper stat;
+  Time lastTime, currentTime;
+  std::stringstream ss;
+  Duration MESSAGE_TIME(10,0);    //the message output rate
+
+  lastTime = Time::now();
+
   while(handle.ok())
   {
     rate.sleep();
     ros::spinOnce();
+    currentTime = Time::now();
 
-    diagnostic_msgs::DiagnosticArray msg_out;
-    diagnostic_updater::DiagnosticStatusWrapper stat;
-    std::stringstream ss;
-
-    if(os.run() > 0)
+    if((os.run() > 0) && ((currentTime - lastTime) > MESSAGE_TIME))
     {
-      
+
+      lastTime = currentTime;
+
+      stat.values.clear();
+
       ss.str("");
       ss << "IBPS " << majorId;
       stat.name = ss.str();
@@ -91,7 +105,7 @@ int main(int argc, char** argv)
       stat.add("Average charge (percent)", os.averageCharge );
       //stat.add("Current (A)", 0);
       //stat.add("Voltage (V)", 0);
-      stat.add("Time since update (s)", os.lastTimeSystem);
+      stat.add("Time since update (s)", (currentTime.sec - os.lastTimeSystem));
 
       msg_out.status.push_back(stat);
 
@@ -114,46 +128,23 @@ int main(int argc, char** argv)
           stat.add("No Good", (os.powerNG & batmask) ? "True":"False");
           stat.add("charge inhibited", (os.inhibited & batmask) ? "True":"False");
 
-          if(os.batRegFlag[xx][os.voltage])
-            stat.add("voltage (V)", toFloat(os.batReg[xx][os.voltage]));
-          if(os.batRegFlag[xx][os.current])
-            stat.add("current (A)", toFloat(os.batReg[xx][os.current]));
-          if(os.batRegFlag[xx][os.relativeStateOfCharge])
-            stat.add( "relative charge", os.batReg[xx][os.relativeStateOfCharge]);
+          for(unsigned int yy = 0; yy < os.regListLength; ++yy)
+          {
+            ss.str("");
+            if(os.regList[yy].unit != "")
+              ss << os.regList[yy].name << " (" << os.regList[yy].unit << ")";
+            else
+              ss << os.regList[yy].name;
+            stat.add( ss.str(), os.batReg[xx][os.regList[yy].address]);
+          }
+
+          stat.add("Time since update (s)", (currentTime.sec - os.lastTimeBattery[xx]));
 
           msg_out.status.push_back(stat);
         }
       }
 
       pub.publish(msg_out);
-
-#if (DEBUG_LEVEL > 0)
-      cout << "------------------------------\n";
-      cout << "present=" << hex << os.present << dec << endl;
-      cout << "charging=" << hex << os.charging << dec << endl;
-      cout << "discharging=" << hex << os.discharging << dec << endl;
-      cout << "reserved=" << hex << os.reserved << dec << endl;
-      cout << "powerPresent=" << hex << os.powerPresent << dec << endl;
-      cout << "powerNG=" << hex << os.powerNG << dec << endl;
-      cout << "inhibited=" << hex << os.inhibited << dec << endl;
-      cout << "\n";
-      for(int xx = 0; xx < MAX_BAT_COUNT; ++xx)
-      {
-        if(os.batRegFlag[xx][0xd])
-          cout << "bat" << xx << " percent=" << os.batReg[xx][0xd] << "% ";
-        if(os.batRegFlag[xx][0xa])
-        {
-          long tmp = os.batReg[xx][0xa];
-          if(tmp & 0x8000)
-            tmp = tmp - 65536;
-
-          cout << " current=" << tmp << "mA";
-        }
-
-        cout << endl;
-      }
-      cout << "------------------------------\n";
-#endif
     }
   }
 }
