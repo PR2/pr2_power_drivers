@@ -1,8 +1,11 @@
 
 #include <iostream>
+#include <vector>
 #include <unistd.h>
 #include <stdlib.h>
 #include <time.h>
+#include <boost/shared_ptr.hpp>
+#include <boost/bind.hpp>
 #include <boost/program_options.hpp>
 #include <boost/thread/thread.hpp>
 
@@ -28,12 +31,164 @@ float toFloat(const int &value)
   return result;
 }
 
+class server
+{
+  public:
+
+    server( const int &majorID, const std::string &dev, const int debug_level = 0 ) : 
+      majorID(majorID), debug_level(debug_level), serial_device("/dev/ttyUSB0"), stopRequest(false)
+    {
+      std::stringstream ss;
+
+      if(dev.empty())
+      {
+        string tmp_device;
+        ss.str("");
+        ss << "/battery/port" << majorID;
+        bool result = handle.getParam( ss.str(), tmp_device );
+        if(result == true)
+        {
+          cout << "Using " << ss.str() << " from getParam.\n";
+          serial_device = tmp_device;
+        }
+      }
+      else
+      {
+        cout << "Overriding device with argument: " << dev << endl;
+        serial_device = dev;
+      }
+
+      //
+      //printf("device=%s  debug_level=%d\n", argv[1], atoi(argv[2]));
+      //cout << "device=" << serial_device <<  "  debug_level=" << debug_level << endl;
+
+    }
+
+    void start()
+    {
+      myThread = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&server::run, this)));
+    }
+
+
+    void stop()
+    {
+      stopRequest = true;
+      myThread->join();
+    }
+
+  private:
+
+    ros::NodeHandle handle;
+    int majorID;
+    int debug_level;
+    std::string serial_device;
+    volatile bool stopRequest;
+    boost::shared_ptr<boost::thread> myThread;
+
+    void run()
+    {
+      std::stringstream ss;
+      ocean os( debug_level);
+
+      os.initialize(serial_device.c_str());
+
+      ros::Publisher pub    = handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 1);
+      ros::Publisher pubBatteryState = handle.advertise<pr2_msgs::BatteryState>("battery_state", 1);
+
+      ros::Rate rate(100);   //set the rate we scan the device for input
+      pr2_msgs::BatteryState  batteryState;
+      diagnostic_msgs::DiagnosticArray msg_out;
+      diagnostic_updater::DiagnosticStatusWrapper stat;
+      Time lastTime, currentTime;
+      Duration MESSAGE_TIME(10,0);    //the message output rate
+
+      lastTime = Time::now();
+
+      while(handle.ok() && (stopRequest == false))
+      {
+        rate.sleep();
+        ros::spinOnce();
+        currentTime = Time::now();
+
+        if((os.run() > 0) && ((currentTime - lastTime) > MESSAGE_TIME))
+        {
+
+          lastTime = currentTime;
+
+          stat.values.clear();
+
+          ss.str("");
+          ss << "IBPS " << majorID;
+          stat.name = ss.str();
+          stat.level = 0;
+          stat.message = "OK";
+          
+          stat.add("Time Remaining (min)", os.timeLeft);
+          stat.add("Average charge (percent)", os.averageCharge );
+          //stat.add("Current (A)", 0);
+          //stat.add("Voltage (V)", 0);
+          stat.add("Time since update (s)", (currentTime.sec - os.lastTimeSystem));
+
+          msg_out.status.push_back(stat);
+
+          for(unsigned int xx = 0; xx < os.MAX_BAT_COUNT; ++xx)
+          {
+            unsigned batmask = (1<<xx);
+            if(os.present & batmask)
+            {
+              stat.values.clear();
+
+              ss.str("");
+              ss << "Smart Battery " << majorID << "." << xx;
+              stat.name = ss.str();
+              stat.level = 0;
+              stat.message = "OK";
+            
+              stat.add("charging", (os.charging & batmask) ? "True":"False");
+              stat.add("discharging", (os.discharging & batmask) ? "True":"False");
+              stat.add("power present", (os.powerPresent & batmask) ? "True":"False");
+              stat.add("No Good", (os.powerNG & batmask) ? "True":"False");
+              stat.add("charge inhibited", (os.inhibited & batmask) ? "True":"False");
+
+              for(unsigned int yy = 0; yy < os.regListLength; ++yy)
+              {
+                ss.str("");
+                if(os.regList[yy].unit != "")
+                  ss << os.regList[yy].name << " (" << os.regList[yy].unit << ")";
+                else
+                  ss << os.regList[yy].name;
+                stat.add( ss.str(), os.batReg[xx][os.regList[yy].address]);
+              }
+
+              stat.add("Time since update (s)", (currentTime.sec - os.lastTimeBattery[xx]));
+
+              msg_out.status.push_back(stat);
+            }
+          }
+
+          pub.publish(msg_out);
+          msg_out.status.clear();
+
+#if 0
+          batteryState.power_consumption = 0;
+          batteryState.time_remaining = 60;
+          batteryState.prediction_method = "fuel guage";
+          batteryState.AC_present = 1;
+
+          pubBatteryState.publish(batteryState);
+#endif
+
+        }
+      }
+    }
+
+};
+
 int main(int argc, char** argv)
 {
-  string serial_device = "/dev/ttyUSB0"; 
   string tmp_device;
   int debug_level;
-  int majorId = -1;     // Used for identity purposes
+
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help", "this help message")
@@ -43,7 +198,6 @@ int main(int argc, char** argv)
   po::variables_map vm;
   po::store(po::parse_command_line( argc, argv, desc), vm);
   po::notify(vm);
-  std::stringstream ss;
 
   if( vm.count("help"))
   {
@@ -54,25 +208,7 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "ocean_server");
   ros::NodeHandle handle;
 
-  if(tmp_device.empty())
-  {
-    int port = 0;
-    ss.str("");
-    ss << "/battery/port" << port;
-    bool result = handle.getParam( ss.str(), tmp_device );
-    if(result == true)
-    {
-      cout << "Using " << ss.str() << " from getParam.\n";
-      serial_device = tmp_device;
-    }
-  }
-  else
-  {
-    cout << "Overriding device with argument: " << tmp_device << endl;
-    serial_device = tmp_device;
-  }
-
-  majorId = serial_device.at(serial_device.length() - 1) - '0';
+  //majorID = serial_device.at(serial_device.length() - 1) - '0';
 
   ROSCONSOLE_AUTOINIT;
   log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
@@ -84,97 +220,23 @@ int main(int argc, char** argv)
     my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Info]);
   }
 
-  //
-  //printf("device=%s  debug_level=%d\n", argv[1], atoi(argv[2]));
-  cout << "device=" << serial_device <<  "  debug_level=" << debug_level << endl;
+  int max_ports(4);
+  handle.getParam( "/battery/number_of_ports", max_ports );
+  cout << "number_of_ports=" << max_ports << endl;
+  handle.getParam( "/battery/debug_level", debug_level );
+  cout << "debug_level=" << debug_level << endl;
 
-  ocean os( debug_level);
+  vector<server> server_list;
 
-  os.initialize(serial_device.c_str());
+  for(int xx = 0; xx < max_ports; ++xx)
+    server_list.push_back(server( xx, tmp_device, debug_level));
 
-  ros::Publisher pub    = handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 1);
-  ros::Publisher pubBatteryState = handle.advertise<pr2_msgs::BatteryState>("battery_state", 1);
+  for(int xx = 0; xx < max_ports; ++xx)
+    server_list[xx].start();
 
-  ros::Rate rate(10);   //set the rate we scan the device for input
-  pr2_msgs::BatteryState  batteryState;
-  diagnostic_msgs::DiagnosticArray msg_out;
-  diagnostic_updater::DiagnosticStatusWrapper stat;
-  Time lastTime, currentTime;
-  Duration MESSAGE_TIME(10,0);    //the message output rate
+  ros::spin(); //wait for ros to shut us down
 
-  lastTime = Time::now();
+  for(int xx = 0; xx < max_ports; ++xx)
+    server_list[xx].stop();
 
-  while(handle.ok())
-  {
-    rate.sleep();
-    ros::spinOnce();
-    currentTime = Time::now();
-
-    if((os.run() > 0) && ((currentTime - lastTime) > MESSAGE_TIME))
-    {
-
-      lastTime = currentTime;
-
-      stat.values.clear();
-
-      ss.str("");
-      ss << "IBPS " << majorId;
-      stat.name = ss.str();
-      stat.level = 0;
-      stat.message = "OK";
-      
-      stat.add("Time Remaining (min)", os.timeLeft);
-      stat.add("Average charge (percent)", os.averageCharge );
-      //stat.add("Current (A)", 0);
-      //stat.add("Voltage (V)", 0);
-      stat.add("Time since update (s)", (currentTime.sec - os.lastTimeSystem));
-
-      msg_out.status.push_back(stat);
-
-      for(unsigned int xx = 0; xx < os.MAX_BAT_COUNT; ++xx)
-      {
-        unsigned batmask = (1<<xx);
-        if(os.present & batmask)
-        {
-          stat.values.clear();
-
-          ss.str("");
-          ss << "Smart Battery " << majorId << "." << xx;
-          stat.name = ss.str();
-          stat.level = 0;
-          stat.message = "OK";
-        
-          stat.add("charging", (os.charging & batmask) ? "True":"False");
-          stat.add("discharging", (os.discharging & batmask) ? "True":"False");
-          stat.add("power present", (os.powerPresent & batmask) ? "True":"False");
-          stat.add("No Good", (os.powerNG & batmask) ? "True":"False");
-          stat.add("charge inhibited", (os.inhibited & batmask) ? "True":"False");
-
-          for(unsigned int yy = 0; yy < os.regListLength; ++yy)
-          {
-            ss.str("");
-            if(os.regList[yy].unit != "")
-              ss << os.regList[yy].name << " (" << os.regList[yy].unit << ")";
-            else
-              ss << os.regList[yy].name;
-            stat.add( ss.str(), os.batReg[xx][os.regList[yy].address]);
-          }
-
-          stat.add("Time since update (s)", (currentTime.sec - os.lastTimeBattery[xx]));
-
-          msg_out.status.push_back(stat);
-        }
-      }
-
-      pub.publish(msg_out);
-
-      batteryState.power_consumption = 0;
-      batteryState.time_remaining = 60;
-      batteryState.prediction_method = "fuel guage";
-      batteryState.AC_present = 1;
-
-      pubBatteryState.publish(batteryState);
-
-    }
-  }
 }
