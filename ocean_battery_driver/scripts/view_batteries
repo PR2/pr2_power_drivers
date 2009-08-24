@@ -46,7 +46,7 @@ import threading, time
 import ocean_battery_driver
 from ocean_battery_driver.ibps_panel import *
 
-NAME = 'pr2_batteries'
+NAME = 'power_state_viewer'
 
 class MainWindow(wx.Frame):
     def __init__(self, parent, id, title):
@@ -73,7 +73,7 @@ def listener():
     app = wx.PySimpleApp()
     rospy.init_node(NAME, anonymous=True)
     
-    frame = MainWindow(None, -1, "PR2 Power Board")
+    frame = MainWindow(None, -1, "PR2 Power State")
     frame.Show()
     
     app.MainLoop()

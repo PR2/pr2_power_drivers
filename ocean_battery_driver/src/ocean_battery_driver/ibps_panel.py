@@ -40,7 +40,7 @@ roslib.load_manifest(PKG)
 
 import sys
 import rospy
-from pr2_msgs.msg import BatteryState
+from pr2_msgs.msg import PowerState
 
 
 import wx
@@ -62,18 +62,18 @@ class BatteryPanel(wx.Panel):
         sizer.Add(self._real_panel, 1, wx.EXPAND)
         self.SetSizer(sizer)
 
-        rospy.Subscriber("battery_state", BatteryState, self.message_callback)
+        rospy.Subscriber("power_state", PowerState, self.message_callback)
         
         self.power_text = xrc.XRCCTRL(self._real_panel, 'm_powerField')
-        self.energy_text = xrc.XRCCTRL(self._real_panel, 'm_EnergyField')
+        self.time_field = xrc.XRCCTRL(self._real_panel, 'm_timeField')
         self.status_text = xrc.XRCCTRL(self._real_panel, 'm_statusField')
 
         self.power_text.SetEditable(False)
-        self.energy_text.SetEditable(False)
+        self.time_field.SetEditable(False)
         self.status_text.SetEditable(False)
 
         # Start a timer to check for timeout
-        self.timeout_interval = 4
+        self.timeout_interval = 10 
         self.last_message_time = rospy.get_time()
         self.timer = wx.Timer(self, 1)
         self.Bind(wx.EVT_TIMER, self.on_timer, self.timer)
@@ -95,20 +95,24 @@ class BatteryPanel(wx.Panel):
         self._mutex.acquire()
         for message in self._messages:
             self.start_timer()
-            ratio = message.energy_remaining / max(message.energy_capacity, 0.0001)
             self.power_text.Enable()
-            self.energy_text.Enable()
+            self.time_field.Enable()
             self.status_text.Enable()
+            self.status_text.SetValue('%s'%message.prediction_method)
             self.power_text.SetValue('%.2f Watts'%message.power_consumption)
-            self.energy_text.SetValue('%.2f of %.2f Joules    %.1f Percent'%(message.energy_remaining, message.energy_capacity, ratio*100.0 ))
-            if ratio > 0.7:
-                self.energy_text.SetBackgroundColour("Light Green")
-            elif ratio > 0.3:
-                self.energy_text.SetBackgroundColour("Orange")
+            if message.time_remaining == 65535:
+              self.time_field.SetValue('Charging')
+              self.time_field.SetBackgroundColour("White")
             else:
-                self.energy_text.SetBackgroundColour("Red")
+              time_remaining = message.time_remaining
+              self.time_field.SetValue('%u minutes remainging'%(time_remaining))
+              if time_remaining > 10:
+                  self.time_field.SetBackgroundColour("Light Green")
+              elif time_remaining > 5:
+                  self.time_field.SetBackgroundColour("Orange")
+              else:
+                  self.time_field.SetBackgroundColour("Red")
                                 
-##        self.textboxes[0].value = "hi"       
         self._messages = []
         
         self._mutex.release()
@@ -138,9 +142,9 @@ class BatteryPanel(wx.Panel):
       if interval > self.timeout_interval or interval < 0:
         #print 'timeout\n'
         self.power_text.Disable()
-        self.energy_text.Disable()
+        self.time_field.Disable()
         self.status_text.Disable()
-        self.energy_text.SetBackgroundColour("White")
+        self.time_field.SetBackgroundColour("White")
       else:
         self.start_timer()
 

@@ -36,7 +36,7 @@ class PowerMonitor
       int acCount(0);
       //float totalCurrent[batteryServers.size()];
       float totalPower(0.0);
-      unsigned int minTime(10000);
+      unsigned int minTime(65535);
 
       boost::mutex::scoped_lock lock(vLock);
       map< int, boost::shared_ptr<pr2_msgs::BatteryServer const> >::iterator itr = batteryServers.begin();

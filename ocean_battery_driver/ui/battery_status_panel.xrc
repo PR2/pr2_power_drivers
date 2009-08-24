@@ -25,6 +25,7 @@
 						<flag>wxALL</flag>
 						<border>5</border>
 						<object class="wxTextCtrl" name="m_powerField">
+							<enabled>0</enabled>
 							<value>Uninitialized</value>
 							<maxlength>0</maxlength>
 						</object>
@@ -42,14 +43,15 @@
 						<flag>wxALL|wxALIGN_CENTER_VERTICAL</flag>
 						<border>5</border>
 						<object class="wxStaticText" name="m_staticText11">
-							<label>Energy:</label>
+							<label>Time:</label>
 						</object>
 					</object>
 					<object class="sizeritem">
 						<option>1</option>
 						<flag>wxALL</flag>
 						<border>5</border>
-						<object class="wxTextCtrl" name="m_EnergyField">
+						<object class="wxTextCtrl" name="m_timeField">
+							<enabled>0</enabled>
 							<value>Uninitialized</value>
 							<maxlength>0</maxlength>
 						</object>
@@ -61,6 +63,7 @@
 				<flag>wxALL|wxEXPAND</flag>
 				<border>5</border>
 				<object class="wxTextCtrl" name="m_statusField">
+					<enabled>0</enabled>
 					<value>Uninitialized</value>
 					<maxlength>0</maxlength>
 				</object>
