@@ -36,9 +36,9 @@ class PowerMonitor
       int acCount(0);
       //float totalCurrent[batteryServers.size()];
       float totalPower(0.0);
-      unsigned int minTime(65535);  //for discharging
+      unsigned int minTime(65534);  //for discharging
       unsigned int maxTime(0);  //for charging
-      int minCapacity(1000); 
+      unsigned int minCapacity(1000); 
 
       boost::mutex::scoped_lock lock(vLock);
       map< int, boost::shared_ptr<pr2_msgs::BatteryServer const> >::iterator itr = batteryServers.begin();
@@ -66,11 +66,11 @@ class PowerMonitor
           totalPower += (current * voltage);
 
           unsigned tte = bat->battery[xx].batReg[0x12];
-          if(tte < minTime) //search for battery with least time remaining
+          if((tte != 65535) && (tte < minTime)) //search for battery with least time remaining
             minTime = tte;
 
           unsigned ttf = bat->battery[xx].batReg[0x13];
-          if(ttf > maxTime) //search for battery with longtest recharge time
+          if((ttf != 65535) && (ttf > maxTime)) //search for battery with longtest recharge time
             maxTime = ttf;
 
           unsigned rsc = bat->battery[xx].batReg[0x0d];
