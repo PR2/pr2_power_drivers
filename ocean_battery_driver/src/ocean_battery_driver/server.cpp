@@ -99,8 +99,12 @@ class server
     {
       std::stringstream ss;
 
-      ros::Publisher pub    = handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 1);
-      ros::Publisher bs     = handle.advertise<pr2_msgs::BatteryServer>("/battery/server", 1);
+      //
+      //  Need to make the queue size big enough that each thread can publish without
+      //  concern that one message it quickly replaced by another threads message.
+      //
+      ros::Publisher pub    = handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 10);
+      ros::Publisher bs     = handle.advertise<pr2_msgs::BatteryServer>("/battery/server", 10);
 
       ros::Rate rate(100);   //set the rate we scan the device for input
       diagnostic_msgs::DiagnosticArray msg_out;
@@ -118,10 +122,11 @@ class server
         //ros::spinOnce();
         currentTime = Time::now();
 
-        bs.publish(os.server);
-
         if((os.run() > 0) && ((currentTime - lastTime) > MESSAGE_TIME))
         {
+
+          // First publish our internal data
+          bs.publish(os.server);
 
           lastTime = currentTime;
 
@@ -133,11 +138,9 @@ class server
           stat.level = 0;
           stat.message = "OK";
           
-#if 0
-          stat.add("Time Remaining (min)", os.timeLeft);
-          stat.add("Average charge (percent)", os.averageCharge );
-          //stat.add("Current (A)", 0);
-          //stat.add("Voltage (V)", 0);
+#if 1
+          stat.add("Time Remaining (min)", os.server.timeLeft);
+          stat.add("Average charge (percent)", os.server.averageCharge );
           stat.add("Time since update (s)", (currentTime.sec - os.server.lastTimeSystem));
 
           msg_out.status.push_back(stat);
@@ -145,7 +148,7 @@ class server
           for(unsigned int xx = 0; xx < os.server.MAX_BAT_COUNT; ++xx)
           {
             unsigned batmask = (1<<xx);
-            if(os.present & batmask)
+            if(os.server.present & batmask)
             {
               stat.values.clear();
 
@@ -155,34 +158,34 @@ class server
               stat.level = 0;
               stat.message = "OK";
             
-              stat.add("charging", (os.charging & batmask) ? "True":"False");
-              stat.add("discharging", (os.discharging & batmask) ? "True":"False");
-              stat.add("power present", (os.powerPresent & batmask) ? "True":"False");
-              stat.add("No Good", (os.powerNG & batmask) ? "True":"False");
-              stat.add("charge inhibited", (os.inhibited & batmask) ? "True":"False");
+              stat.add("charging", (os.server.charging & batmask) ? "True":"False");
+              stat.add("discharging", (os.server.discharging & batmask) ? "True":"False");
+              stat.add("power present", (os.server.powerPresent & batmask) ? "True":"False");
+              stat.add("No Good", (os.server.powerNG & batmask) ? "True":"False");
+              stat.add("charge inhibited", (os.server.inhibited & batmask) ? "True":"False");
 
               for(unsigned int yy = 0; yy < os.regListLength; ++yy)
               {
                 unsigned addr = os.regList[yy].address;
-                if(os.batRegFlag[xx][addr] != 0)
+                if(os.server.battery[xx].batRegFlag[addr] != 0)
                 {
                   ss.str("");
                   if(os.regList[yy].unit != "")
                     ss << os.regList[yy].name << " (" << os.regList[yy].unit << ")";
                   else
                     ss << os.regList[yy].name;
-                  stat.add( ss.str(), os.batReg[xx][addr]);
+                  stat.add( ss.str(), os.server.battery[xx].batReg[addr]);
                 }
               }
 
-              stat.add("Time since update (s)", (currentTime.sec - os.server.lastTimeBattery[xx]));
+              stat.add("Time since update (s)", (currentTime.sec - os.server.battery[xx].lastTimeBattery));
 
               msg_out.status.push_back(stat);
 
 #if 1
               {
                 boost::mutex::scoped_lock lock(data_lock);
-                battery_voltage[xx] = toFloat(os.batReg[xx][0x9]);
+                battery_voltage[xx] = toFloat(os.server.battery[xx].batReg[0x9]);
               } //end mutex lock
 #endif
             }
@@ -251,7 +254,7 @@ int main(int argc, char** argv)
   ros::spin(); //wait for ros to shut us down
 #if 0
   ros::Rate rate(1);
-  ros::Publisher pubBatteryState = handle.advertise<pr2_msgs::BatteryState>("battery_state", 1);
+  ros::Publisher pubBatteryState = handle.advertise<pr2_msgs::BatteryState>("battery_state", 5);
   pr2_msgs::BatteryState  batteryState;
 
   while(handle.ok())
