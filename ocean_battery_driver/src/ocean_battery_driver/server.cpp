@@ -159,12 +159,16 @@ class server
 
               for(unsigned int yy = 0; yy < os.regListLength; ++yy)
               {
-                ss.str("");
-                if(os.regList[yy].unit != "")
-                  ss << os.regList[yy].name << " (" << os.regList[yy].unit << ")";
-                else
-                  ss << os.regList[yy].name;
-                stat.add( ss.str(), os.batReg[xx][os.regList[yy].address]);
+                unsigned addr = os.regList[yy].address;
+                if(os.batRegFlag[xx][addr] != 0)
+                {
+                  ss.str("");
+                  if(os.regList[yy].unit != "")
+                    ss << os.regList[yy].name << " (" << os.regList[yy].unit << ")";
+                  else
+                    ss << os.regList[yy].name;
+                  stat.add( ss.str(), os.batReg[xx][addr]);
+                }
               }
 
               stat.add("Time since update (s)", (currentTime.sec - os.lastTimeBattery[xx]));
