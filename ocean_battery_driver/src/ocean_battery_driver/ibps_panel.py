@@ -67,10 +67,13 @@ class BatteryPanel(wx.Panel):
         self.power_text = xrc.XRCCTRL(self._real_panel, 'm_powerField')
         self.time_field = xrc.XRCCTRL(self._real_panel, 'm_timeField')
         self.status_text = xrc.XRCCTRL(self._real_panel, 'm_statusField')
+        self.capacity_gauge = xrc.XRCCTRL(self._real_panel, 'm_capacityGauge')
+        self.capacity_text = xrc.XRCCTRL(self._real_panel, 'm_capacityText')
 
         self.power_text.SetEditable(False)
         self.time_field.SetEditable(False)
         self.status_text.SetEditable(False)
+        self.capacity_text.SetEditable(False)
 
         # Start a timer to check for timeout
         self.timeout_interval = 10 
@@ -98,14 +101,17 @@ class BatteryPanel(wx.Panel):
             self.power_text.Enable()
             self.time_field.Enable()
             self.status_text.Enable()
+            self.capacity_text.Enable()
             self.status_text.SetValue('%s'%message.prediction_method)
             self.power_text.SetValue('%.2f Watts'%message.power_consumption)
-            if message.time_remaining == 65535:
-              self.time_field.SetValue('Charging')
+            self.capacity_gauge.SetValue(message.relative_capacity)
+            self.capacity_text.SetValue('%d%%'%message.relative_capacity)
+            time_remaining = message.time_remaining
+            if message.AC_present > 0:
+              self.time_field.SetValue('%u minutes to full'%(time_remaining))
               self.time_field.SetBackgroundColour("White")
             else:
-              time_remaining = message.time_remaining
-              self.time_field.SetValue('%u minutes remainging'%(time_remaining))
+              self.time_field.SetValue('%u minutes to empty'%(time_remaining))
               if time_remaining > 10:
                   self.time_field.SetBackgroundColour("Light Green")
               elif time_remaining > 5:
@@ -145,6 +151,7 @@ class BatteryPanel(wx.Panel):
         self.time_field.Disable()
         self.status_text.Disable()
         self.time_field.SetBackgroundColour("White")
+        self.capacity_text.Disable()
       else:
         self.start_timer()
 

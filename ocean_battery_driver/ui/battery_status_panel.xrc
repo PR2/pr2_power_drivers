@@ -26,7 +26,7 @@
 						<border>5</border>
 						<object class="wxTextCtrl" name="m_powerField">
 							<enabled>0</enabled>
-							<value>Uninitialized</value>
+							<value>-12345 watts</value>
 							<maxlength>0</maxlength>
 						</object>
 					</object>
@@ -52,8 +52,44 @@
 						<border>5</border>
 						<object class="wxTextCtrl" name="m_timeField">
 							<enabled>0</enabled>
-							<value>Uninitialized</value>
+							<value>12345 minutes</value>
 							<maxlength>0</maxlength>
+						</object>
+					</object>
+				</object>
+			</object>
+			<object class="sizeritem">
+				<option>1</option>
+				<flag>wxEXPAND</flag>
+				<border>5</border>
+				<object class="wxBoxSizer">
+					<orient>wxHORIZONTAL</orient>
+					<object class="sizeritem">
+						<option>0</option>
+						<flag>wxALL</flag>
+						<border>5</border>
+						<object class="wxStaticText" name="m_staticText3">
+							<label>Capacity:</label>
+						</object>
+					</object>
+					<object class="sizeritem">
+						<option>0</option>
+						<flag>wxALL</flag>
+						<border>5</border>
+						<object class="wxTextCtrl" name="m_capacityText">
+							<enabled>0</enabled>
+							<value>123%</value>
+							<maxlength>0</maxlength>
+						</object>
+					</object>
+					<object class="sizeritem">
+						<option>1</option>
+						<flag>wxALL</flag>
+						<border>5</border>
+						<object class="wxGauge" name="m_capacityGauge">
+							<style>wxGA_HORIZONTAL</style>
+							<range>100</range>
+							<value>0</value>
 						</object>
 					</object>
 				</object>
