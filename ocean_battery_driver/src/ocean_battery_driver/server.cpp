@@ -12,6 +12,7 @@
 #include "diagnostic_msgs/DiagnosticStatus.h"
 #include "diagnostic_updater/DiagnosticStatusWrapper.h"
 #include "rosconsole/macros_generated.h"
+#include "pr2_msgs/BatteryState.h"
 
 using namespace std;
 using namespace ros;
@@ -29,18 +30,20 @@ float toFloat(const int &value)
 
 int main(int argc, char** argv)
 {
-  string serial_device;
+  string serial_device = "/dev/ttyUSB0"; 
+  string tmp_device;
   int debug_level;
   int majorId = -1;     // Used for identity purposes
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help", "this help message")
     ("debug", po::value<int>(&debug_level)->default_value(0), "debug level")
-    ("dev", po::value<string>(&serial_device)->default_value("/dev/ttyUSB0"), "serial device to open");
+    ("dev", po::value<string>(&tmp_device), "serial device to open");
 
   po::variables_map vm;
   po::store(po::parse_command_line( argc, argv, desc), vm);
   po::notify(vm);
+  std::stringstream ss;
 
   if( vm.count("help"))
   {
@@ -48,11 +51,29 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  majorId = serial_device.at(serial_device.length() - 1) - '0';
-
   ros::init(argc, argv, "ocean_server");
   ros::NodeHandle handle;
-  
+
+  if(tmp_device.empty())
+  {
+    int port = 0;
+    ss.str("");
+    ss << "/battery/port" << port;
+    bool result = handle.getParam( ss.str(), tmp_device );
+    if(result == true)
+    {
+      cout << "Using " << ss.str() << " from getParam.\n";
+      serial_device = tmp_device;
+    }
+  }
+  else
+  {
+    cout << "Overriding device with argument: " << tmp_device << endl;
+    serial_device = tmp_device;
+  }
+
+  majorId = serial_device.at(serial_device.length() - 1) - '0';
+
   ROSCONSOLE_AUTOINIT;
   log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
   fprintf(stderr, "Logger Name: %s\n", ROSCONSOLE_DEFAULT_NAME);
@@ -65,19 +86,20 @@ int main(int argc, char** argv)
 
   //
   //printf("device=%s  debug_level=%d\n", argv[1], atoi(argv[2]));
-  //cout << "device=" << serial_device <<  "  debug_level=" << debug_level << endl;
+  cout << "device=" << serial_device <<  "  debug_level=" << debug_level << endl;
 
   ocean os( debug_level);
 
   os.initialize(serial_device.c_str());
 
-  ros::Publisher pub = handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
+  ros::Publisher pub    = handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 1);
+  ros::Publisher pubBatteryState = handle.advertise<pr2_msgs::BatteryState>("battery_state", 1);
 
   ros::Rate rate(10);   //set the rate we scan the device for input
+  pr2_msgs::BatteryState  batteryState;
   diagnostic_msgs::DiagnosticArray msg_out;
   diagnostic_updater::DiagnosticStatusWrapper stat;
   Time lastTime, currentTime;
-  std::stringstream ss;
   Duration MESSAGE_TIME(10,0);    //the message output rate
 
   lastTime = Time::now();
@@ -145,6 +167,14 @@ int main(int argc, char** argv)
       }
 
       pub.publish(msg_out);
+
+      batteryState.power_consumption = 0;
+      batteryState.time_remaining = 60;
+      batteryState.prediction_method = "fuel guage";
+      batteryState.AC_present = 1;
+
+      pubBatteryState.publish(batteryState);
+
     }
   }
 }
