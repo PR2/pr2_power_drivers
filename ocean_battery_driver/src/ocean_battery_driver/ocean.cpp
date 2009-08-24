@@ -72,7 +72,7 @@ const unsigned ocean::regListLength(sizeof(regList)/ sizeof(struct regPair));
 ocean::ocean ( int debug)
 {
   debuglevel = debug;
-
+  server.battery.resize(4);
 }
 
 ocean::~ocean ()
@@ -112,11 +112,11 @@ ocean::initialize (const std::string &input_dev)
 
   set_speed (19200);
 
-  memset(batReg, 0, sizeof(batReg));
-  memset(batRegFlag, 0, sizeof(batReg));
-  lastTimeSystem = lastTimeController = 0;
-  memset( lastTimeBattery, 0, sizeof(lastTimeBattery));
-  memset( batRegTime, 0, sizeof(batRegTime));
+  //memset(batReg, 0, sizeof(batReg));
+  //memset(batRegFlag, 0, sizeof(batReg));
+  server.lastTimeSystem = server.lastTimeController = 0;
+  //memset( server.lastTimeBattery, 0, sizeof(server.lastTimeBattery));
+  //memset( batRegTime, 0, sizeof(batRegTime));
 
 #if (FILE_LOGGING > 0)
   char logname[128];
@@ -538,7 +538,7 @@ unsigned int ocean::processSystem (int count, char *field[])
    *  6  ASCII text message
    *
    */
-  time(&lastTimeSystem);
+  time((time_t*)&server.lastTimeSystem);
 
   for( int index = 1; index < count; )
   {
@@ -548,16 +548,17 @@ unsigned int ocean::processSystem (int count, char *field[])
     switch(tmp)
     {
       case 1:
-        timeLeft = (unsigned short)strtol( field[index], 0, 16 );
-        report (5, "timeLeft=%x\n", timeLeft);
+        server.timeLeft = (unsigned short)strtol( field[index], 0, 16 );
+        report (5, "timeLeft=%x\n", server.timeLeft);
         break;
       case 3:
-        sscanf( field[index], "%s", message);
-        report (5, "processSystem message=%s\n", message);
+        server.message.assign(field[index]);
+        //sscanf( field[index], "%s", server.message.c_str());
+        report (5, "processSystem message=%s\n", server.message.c_str());
         break;
       case 4:
-        averageCharge = (unsigned short)strtol( field[index], 0, 16 );
-        report (5, "averageCharge=%x\n", averageCharge);
+        server.averageCharge = (unsigned short)strtol( field[index], 0, 16 );
+        report (5, "averageCharge=%x\n", server.averageCharge);
         break;
       default:
         ;
@@ -590,7 +591,7 @@ unsigned int ocean::processController (int count, char *field[])
    *
    */
 
-  time(&lastTimeController);
+  time((time_t*)&server.lastTimeController);
 
   for( int index = 1; index < count; )
   {
@@ -611,37 +612,37 @@ unsigned int ocean::processController (int count, char *field[])
       {
         case 1:
         {
-          present = value;
+          server.present = value;
         }
         break;
         case 2:
         {
-          charging = value;
+          server.charging = value;
         }
         break;
         case 3:
         {
-          discharging = value;
+          server.discharging = value;
         }
         break;
         case 4:
         {
-          reserved = value;
+          server.reserved = value;
         }
         break;
         case 5:
         {
-          powerPresent = value;
+          server.powerPresent = value;
         }
         break;
         case 6:
         {
-          powerNG = value;
+          server.powerNG = value;
         }
         break;
         case 7:
         {
-          inhibited = value;
+          server.inhibited = value;
         }
         break;
       }
@@ -672,7 +673,7 @@ unsigned int ocean::processBattery (int count, char *field[])
   report (5, "processBattery count=%d \n", count);
   report (5, "currentBattery=%d \n", battery);
 
-  time(&lastTimeBattery[battery]);
+  time((time_t*)&server.battery[battery].lastTimeBattery);
   --count;  //get past sentence type
 
   unsigned int regNumber;
@@ -685,15 +686,15 @@ unsigned int ocean::processBattery (int count, char *field[])
     value = strtoul( field[xx], 0, 16);
     ++xx;
     report (5, "reg[%u]=%x \n", regNumber, value);
-    if(regNumber >= MAX_BAT_REG)
+    if(regNumber >= server.MAX_BAT_REG)
     {
-      report (2, "Register greater than expected: %x  MAX_BAT_REG=%x\n", regNumber, MAX_BAT_REG);
+      report (2, "Register greater than expected: %x  MAX_BAT_REG=%x\n", regNumber, server.MAX_BAT_REG);
     }
     else
     {
-      batReg[battery][regNumber] = value;
-      batRegFlag[battery][regNumber] = 0x1;
-      time(&batRegTime[battery][regNumber]);
+      server.battery[battery].batReg[regNumber] = value;
+      server.battery[battery].batRegFlag[regNumber] = 0x1;
+      time((time_t*)&server.battery[battery].batRegTime[regNumber]);
     }
 
     count -= 2;

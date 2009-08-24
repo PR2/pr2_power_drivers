@@ -17,11 +17,12 @@ int main(int argc, char** argv)
 
   os.initialize(argv[1]);
 
-  int count = 10;
+  //int count = 10;
   while(1)
   {
     os.run();
     usleep(100);
+#if 0
     --count;
     if(count == 0)
     {
@@ -53,5 +54,6 @@ int main(int argc, char** argv)
       }
       cout << "------------------------------\n";
     }
+#endif
   }
 }

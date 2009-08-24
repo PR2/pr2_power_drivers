@@ -8,6 +8,7 @@
 #include <time.h>
 #include <list>
 #include <utility>
+#include "pr2_msgs/BatteryServer.h"
 
 namespace willowgarage
 {
@@ -93,6 +94,7 @@ namespace willowgarage
       static const struct regPair regList[];
       static const unsigned regListLength;
 
+#if 0
       static const unsigned int MAX_BAT_COUNT = 4;
       static const unsigned int MAX_BAT_REG = 0x30;
       time_t lastTimeSystem, lastTimeController, lastTimeBattery[MAX_BAT_COUNT];
@@ -109,6 +111,8 @@ namespace willowgarage
       unsigned short batRegFlag[MAX_BAT_COUNT][MAX_BAT_REG];
       time_t batRegTime[MAX_BAT_COUNT][MAX_BAT_REG];
       char message[64];
+#endif
+      pr2_msgs::BatteryServer server;
     };
   }
 }

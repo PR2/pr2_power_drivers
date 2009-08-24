@@ -100,6 +100,7 @@ class server
       std::stringstream ss;
 
       ros::Publisher pub    = handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 1);
+      ros::Publisher bs     = handle.advertise<pr2_msgs::BatteryServer>("/battery/server", 1);
 
       ros::Rate rate(100);   //set the rate we scan the device for input
       diagnostic_msgs::DiagnosticArray msg_out;
@@ -117,6 +118,8 @@ class server
         //ros::spinOnce();
         currentTime = Time::now();
 
+        bs.publish(os.server);
+
         if((os.run() > 0) && ((currentTime - lastTime) > MESSAGE_TIME))
         {
 
@@ -130,15 +133,16 @@ class server
           stat.level = 0;
           stat.message = "OK";
           
+#if 0
           stat.add("Time Remaining (min)", os.timeLeft);
           stat.add("Average charge (percent)", os.averageCharge );
           //stat.add("Current (A)", 0);
           //stat.add("Voltage (V)", 0);
-          stat.add("Time since update (s)", (currentTime.sec - os.lastTimeSystem));
+          stat.add("Time since update (s)", (currentTime.sec - os.server.lastTimeSystem));
 
           msg_out.status.push_back(stat);
 
-          for(unsigned int xx = 0; xx < os.MAX_BAT_COUNT; ++xx)
+          for(unsigned int xx = 0; xx < os.server.MAX_BAT_COUNT; ++xx)
           {
             unsigned batmask = (1<<xx);
             if(os.present & batmask)
@@ -171,7 +175,7 @@ class server
                 }
               }
 
-              stat.add("Time since update (s)", (currentTime.sec - os.lastTimeBattery[xx]));
+              stat.add("Time since update (s)", (currentTime.sec - os.server.lastTimeBattery[xx]));
 
               msg_out.status.push_back(stat);
 
@@ -183,6 +187,7 @@ class server
 #endif
             }
           }
+#endif
 
           pub.publish(msg_out);
           msg_out.status.clear();
@@ -243,8 +248,8 @@ int main(int argc, char** argv)
   for(int xx = 0; xx < max_ports; ++xx)
     server_list[xx].start();
 
-  //ros::spin(); //wait for ros to shut us down
-#if 1
+  ros::spin(); //wait for ros to shut us down
+#if 0
   ros::Rate rate(1);
   ros::Publisher pubBatteryState = handle.advertise<pr2_msgs::BatteryState>("battery_state", 1);
   pr2_msgs::BatteryState  batteryState;
