@@ -1,0 +1,17 @@
+<package>
+  <description brief="power_monitor">
+
+     power_monitor
+
+  </description>
+  <author>Curt Meyers</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://pr.willowgarage.com/wiki/power_monitor</url>
+  <depend package="roscpp"/>
+  <depend package="std_msgs"/>
+  <depend package="pr2_msgs"/>
+
+</package>
+
+
