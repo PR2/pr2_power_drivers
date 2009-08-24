@@ -3,8 +3,13 @@
   <author>Tully Foote</author>
   <license>BSD</license>
   <review status="API cleared" notes=""/>
+  <depend package="roscpp" />
   <depend package="rospy" />
   <depend package="pr2_msgs" />
+  <depend package="diagnostic_updater" />
   <depend package="diagnostic_msgs" />
   <rosdep name="wxpython"/>
+  <export> 
+    <cpp cflags="-I${prefix}/srv/cpp" />   
+  </export> 
 </package>
