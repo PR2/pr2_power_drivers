@@ -36,7 +36,9 @@ class PowerMonitor
       int acCount(0);
       //float totalCurrent[batteryServers.size()];
       float totalPower(0.0);
-      unsigned int minTime(65535);
+      unsigned int minTime(65535);  //for discharging
+      unsigned int maxTime(0);  //for charging
+      int minCapacity(1000); 
 
       boost::mutex::scoped_lock lock(vLock);
       map< int, boost::shared_ptr<pr2_msgs::BatteryServer const> >::iterator itr = batteryServers.begin();
@@ -64,8 +66,16 @@ class PowerMonitor
           totalPower += (current * voltage);
 
           unsigned tte = bat->battery[xx].batReg[0x12];
-          if(tte < minTime) //search for battery is least time remaining
+          if(tte < minTime) //search for battery with least time remaining
             minTime = tte;
+
+          unsigned ttf = bat->battery[xx].batReg[0x13];
+          if(ttf > maxTime) //search for battery with longtest recharge time
+            maxTime = ttf;
+
+          unsigned rsc = bat->battery[xx].batReg[0x0d];
+          if(rsc < minCapacity) //search for battery with lowest state of charge
+            minCapacity = rsc;
         }
 
         //totalCurrent[bat->id] = tmpCurrent;
@@ -75,9 +85,13 @@ class PowerMonitor
       ROS_DEBUG(" totalPower=%f", totalPower);
 
       powerState.power_consumption = totalPower;
-      powerState.time_remaining = minTime;
-      powerState.prediction_method = "fuel guage";
       powerState.AC_present = acCount;
+      if(acCount > 0) //Are we charging??
+        powerState.time_remaining = maxTime;
+      else
+        powerState.time_remaining = minTime;
+      powerState.prediction_method = "fuel guage";
+      powerState.relative_capacity = minCapacity;
 
       pub.publish(powerState);
     };
