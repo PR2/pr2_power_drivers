@@ -25,8 +25,45 @@ namespace willowgarage
       static const int NO_PACKET = 0;
       static const int NMEA_PACKET = 1;
 
-        ocean (int debug = 0);
-       ~ocean ();
+      //Battery Registers
+      //Takend from the Smart Battery Data Specification Revision 1.1, Dec. 11, 1998
+      //
+      static const int manufacturerAccess     = 0x00;
+      static const int remainingCapacityAlarm = 0x01;
+      static const int remainingTimeAlarm     = 0x02;
+      static const int batteryMode            = 0x03;
+      static const int atRate                 = 0x04;
+      static const int atRateTimeToFull       = 0x05;
+      static const int atRateTimeToEmpty      = 0x06;
+      static const int atRateOK               = 0x07;
+      static const int temperature            = 0x08; 
+      static const int voltage                = 0x09; 
+      static const int current                = 0x0a; 
+      static const int averageCurrent         = 0x0b; 
+      static const int maxError               = 0x0c; 
+      static const int relativeStateOfCharge  = 0x0d;
+      static const int absoluteStateOfCharge  = 0x0e; 
+      static const int remainingCapacity      = 0x0f; 
+      static const int fullChargeCapacity     = 0x10; 
+      static const int runTimeToEmpty         = 0x11; 
+      static const int averageTimeToEmpty     = 0x12; 
+      static const int averageTimeToFull      = 0x13; 
+      //static const int                        = 0x14; 
+      //static const int                        = 0x15; 
+      static const int batteryStatus          = 0x16; 
+      static const int cycleCount             = 0x17; 
+      static const int designCapacity         = 0x18; 
+      static const int designVoltage          = 0x19; 
+      static const int specificationInfo      = 0x1a; 
+      static const int manufactureDate        = 0x1b; 
+      static const int serialNumber           = 0x1c; 
+      static const int manufactureName        = 0x20; 
+      static const int deviceName             = 0x21; 
+      static const int deviceChemistry        = 0x22; 
+      static const int manufactureData        = 0x23; 
+
+      ocean (int debug = 0);
+      ~ocean ();
 
       int run ();
       void setDebugLevel (int);

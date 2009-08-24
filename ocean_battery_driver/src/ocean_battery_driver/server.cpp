@@ -15,10 +15,20 @@ using namespace std;
 using namespace willowgarage::ocean;
 namespace po = boost::program_options;
 
+float toFloat(const int &value)
+{
+  int tmp = value;
+  if(tmp & 0x8000)
+    tmp = tmp - 65536;
+  float result = tmp / 1000.0;
+  return result;
+}
+
 int main(int argc, char** argv)
 {
   string serial_device;
   int debug_level;
+  int majorId = -1;     // Used for identity purposes
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help", "this help message")
@@ -71,18 +81,50 @@ int main(int argc, char** argv)
     if(os.run() > 0)
     {
       
-      stat.name = "IBPS 0";
+      ss.str("");
+      ss << "IBPS " << majorId;
+      stat.name = ss.str();
       stat.level = 0;
       stat.message = "OK";
       
       stat.add("Time Remaining (min)", os.timeLeft);
       stat.add("Average charge (percent)", os.averageCharge );
-      stat.add("Current (A)", 0);
-      stat.add("Voltage (V)", 0);
+      //stat.add("Current (A)", 0);
+      //stat.add("Voltage (V)", 0);
       stat.add("Time since update (s)", os.lastTimeSystem);
 
-
       msg_out.status.push_back(stat);
+
+      for(unsigned int xx = 0; xx < os.MAX_BAT_COUNT; ++xx)
+      {
+        unsigned batmask = (1<<xx);
+        if(os.present & batmask)
+        {
+          stat.values.clear();
+
+          ss.str("");
+          ss << "Smart Battery " << majorId << "." << xx;
+          stat.name = ss.str();
+          stat.level = 0;
+          stat.message = "OK";
+        
+          stat.add("charging", (os.charging & batmask) ? "True":"False");
+          stat.add("discharging", (os.discharging & batmask) ? "True":"False");
+          stat.add("power present", (os.powerPresent & batmask) ? "True":"False");
+          stat.add("No Good", (os.powerNG & batmask) ? "True":"False");
+          stat.add("charge inhibited", (os.inhibited & batmask) ? "True":"False");
+
+          if(os.batRegFlag[xx][os.voltage])
+            stat.add("voltage (V)", toFloat(os.batReg[xx][os.voltage]));
+          if(os.batRegFlag[xx][os.current])
+            stat.add("current (A)", toFloat(os.batReg[xx][os.current]));
+          if(os.batRegFlag[xx][os.relativeStateOfCharge])
+            stat.add( "relative charge", os.batReg[xx][os.relativeStateOfCharge]);
+
+          msg_out.status.push_back(stat);
+        }
+      }
+
       pub.publish(msg_out);
 
 #if (DEBUG_LEVEL > 0)
