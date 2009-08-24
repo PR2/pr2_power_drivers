@@ -49,7 +49,7 @@ class server
         serial_device = ss.str();
 
         ss.str("");
-        ss << "/battery/port" << majorID;
+        ss << "/ocean_server/port" << majorID;
         bool result = handle.getParam( ss.str(), tmp_device );
         if(result == true)
         {
@@ -228,9 +228,9 @@ int main(int argc, char** argv)
   }
 
   int max_ports(4);
-  handle.getParam( "/battery/number_of_ports", max_ports );
+  handle.getParam( "/ocean_server/number_of_ports", max_ports );
   ROS_INFO("number_of_ports=%d", max_ports);
-  handle.getParam( "/battery/debug_level", debug_level );
+  handle.getParam( "/ocean_server/debug_level", debug_level );
   ROS_DEBUG("debug_level=%d", debug_level);
 
   vector<server> server_list;
