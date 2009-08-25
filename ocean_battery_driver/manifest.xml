@@ -1,6 +1,6 @@
 <package>
   <description>This is an interface to the Ocean Server Technology Intelligent Battery and Power System.</description>
-  <author>Tully Foote</author>
+  <author>Tully Foote, Curt Meyers</author>
   <license>BSD</license>
   <review status="API cleared" notes=""/>
   <depend package="roscpp" />
@@ -12,4 +12,5 @@
   <export> 
     <cpp cflags="-I${prefix}/srv/cpp" />   
   </export> 
+  <url>http://www.ros.org/wiki/ocean_battery_driver</url>
 </package>
