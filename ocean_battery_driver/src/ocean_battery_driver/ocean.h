@@ -62,6 +62,9 @@ namespace willowgarage
       unsigned int processController (int count, char *field[]);
       unsigned int processSystem (int count, char *field[]);
       unsigned int processBattery (int count, char *field[]);
+      int commTest();
+      void resetOcean();
+      int string_send (const char *fmt, ...);
 
     private:
       int inputDevice;
@@ -94,24 +97,6 @@ namespace willowgarage
       static const struct regPair regList[];
       static const unsigned regListLength;
 
-#if 0
-      static const unsigned int MAX_BAT_COUNT = 4;
-      static const unsigned int MAX_BAT_REG = 0x30;
-      time_t lastTimeSystem, lastTimeController, lastTimeBattery[MAX_BAT_COUNT];
-      unsigned short timeLeft;
-      unsigned short averageCharge;
-      unsigned short present;
-      unsigned short charging;
-      unsigned short discharging;
-      unsigned short reserved;
-      unsigned short powerPresent;
-      unsigned short powerNG;
-      unsigned short inhibited;
-      unsigned short batReg[MAX_BAT_COUNT][MAX_BAT_REG];
-      unsigned short batRegFlag[MAX_BAT_COUNT][MAX_BAT_REG];
-      time_t batRegTime[MAX_BAT_COUNT][MAX_BAT_REG];
-      char message[64];
-#endif
       pr2_msgs::BatteryServer server;
     };
   }

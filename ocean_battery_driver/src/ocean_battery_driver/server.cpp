@@ -195,11 +195,13 @@ int main(int argc, char** argv)
 {
   string tmp_device;
   int debug_level;
+  int max_ports;
 
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help", "this help message")
     ("debug", po::value<int>(&debug_level)->default_value(0), "debug level")
+    ("count", po::value<int>(&max_ports)->default_value(4), "number of ports to monitor")
     ("dev", po::value<string>(&tmp_device), "serial device to open");
 
   po::variables_map vm;
@@ -227,7 +229,6 @@ int main(int argc, char** argv)
     my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Info]);
   }
 
-  int max_ports(4);
   handle.getParam( "/ocean_server/number_of_ports", max_ports );
   ROS_INFO("number_of_ports=%d", max_ports);
   handle.getParam( "/ocean_server/debug_level", debug_level );

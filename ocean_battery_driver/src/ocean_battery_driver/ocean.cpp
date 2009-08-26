@@ -66,7 +66,7 @@ const struct ocean::regPair ocean::regList[] = {
 const unsigned ocean::regListLength(sizeof(regList)/ sizeof(struct regPair));
 /**
  * Open the required device and establish communications with
- * the GPS.
+ * the OCEAN.
  */
 
 ocean::ocean ( int id,  int debug)
@@ -97,13 +97,13 @@ ocean::initialize (const std::string &input_dev)
   //printf ("inputDevice %d\n", inputDevice);
   if (inputDevice < 0)
   {
-    fprintf (stderr, "failed to open gps device: %s\n", strerror (errno));
+    fprintf (stderr, "failed to open tty device: %s\n", strerror (errno));
   }
   if (isatty (inputDevice) != 1)
   {
     fprintf (stderr, "Device not a tty device.\n");
   }
-  report (2, "Device opened\n");
+  report (2, "Device opened dev=%d\n", inputDevice);
 
   tcgetattr (inputDevice, &ttyset);     //get current port settings
 
@@ -142,6 +142,78 @@ ocean::initialize (const std::string &input_dev)
   }
 #endif
 
+  if(commTest())  //If the Ocean isn't talking then get it into the NMEA mode
+    resetOcean();
+
+}
+
+int ocean::commTest()
+{
+  int maxTries = 10;
+  fd_set rfds;
+  struct timeval tv;
+  int retval;
+
+  packet_reset();
+
+  int listenCount = 50;
+  do
+  {
+    maxTries = 10;
+
+    while((packetType != NMEA_PACKET) && (maxTries--))
+    {
+      report(5,"commTest: call packet_get\n");
+      int result = NO_PACKET;
+
+      FD_ZERO(&rfds);
+      FD_SET(inputDevice, &rfds);
+      tv.tv_sec = 2;
+      tv.tv_usec = 0;
+
+      retval = select( inputDevice + 1, &rfds, NULL, NULL, &tv);
+      if(retval < 0)
+        report(0, "select error\n");
+      else if(retval > 0)
+      {
+        {
+          report(5, "calling packet_get\n");
+          result = packet_get();
+        }
+      }
+      else
+      {
+        report(2, "select timeout\n");
+        listenCount -= 10;
+        maxTries = 0;
+      }
+      usleep(1000);
+    }
+
+    if(packetType == NMEA_PACKET)
+    {
+      report(5,"NMEA packet\n");
+      if(nmea_parse() > 0)
+      {
+        return(0);
+      }
+    } else
+       report(5,"non NMEA packet\n");
+
+    report(6, "listenCount=%d\n", listenCount);
+  } while( listenCount-- > 0);
+
+  return(-1);
+}
+
+void
+ocean::resetOcean()
+{
+  report(5, "Sending ocean reset string\n");
+  string_send(" ");
+  usleep(1000);
+  string_send("x");
+  usleep(1000);
 }
 
 int
@@ -822,7 +894,7 @@ ocean::nmea_add_checksum (char *sentence)
   (void) snprintf (p, 5, "%02X\r\n", (unsigned) sum);
 }
 
-/* ship a command to the GPS, adding * and correct checksum */
+/* ship a command to the OCEAN, adding * and correct checksum */
 int
 ocean::nmea_send (const char *fmt, ...)
 {
@@ -843,12 +915,35 @@ ocean::nmea_send (const char *fmt, ...)
   status = (int) write (inputDevice, buf, strlen (buf));
   if (status == (int) strlen (buf))
   {
-    report (3, "=> GPS: %s\n", buf);
+    report (3, "=> OCEAN: %s\n", buf);
     return status;
   }
   else
   {
-    report (3, "=> GPS: %s FAILED\n", buf);
+    report (3, "=> OCEAN: %s FAILED\n", buf);
+    return -1;
+  }
+}
+
+int
+ocean::string_send (const char *fmt, ...)
+{
+  int status;
+  char buf[BUFSIZ];
+  va_list ap;
+
+  va_start (ap, fmt);
+  (void) vsnprintf (buf, sizeof (buf) - 5, fmt, ap);
+  va_end (ap);
+  status = (int) write (inputDevice, buf, strlen (buf));
+  if (status == (int) strlen (buf))
+  {
+    report (3, "=> Ocean: %s\n", buf);
+    return status;
+  }
+  else
+  {
+    report (3, "=> Ocean: %s FAILED\n", buf);
     return -1;
   }
 }
