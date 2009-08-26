@@ -7,7 +7,7 @@
   <author>Maintained by Blaise Gassend</author>
   <license>BSD</license>  
   <review status="unreviewed" notes=""/>
-  <url>http://pr.willowgarage.com/wiki/pr2_power_drivers</url>
+  <url>http://ros.org/wiki/pr2_power_drivers</url>
   <depend stack="diagnostics"/> <!-- diagnostic_updater --> 
   <depend stack="ros"/> <!-- rospy, roscpp --> 
   <depend stack="common_msgs"/> <!-- diagnostic_msgs --> 
