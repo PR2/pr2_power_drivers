@@ -126,7 +126,7 @@ class PowerBoardPanel(wx.Panel):
         self.currentBoard = "none"
 
     def chooseBoard(self, event):
-        #print "choose: %s" %self.myList.GetValue()
+        #rospy.logerr("choose: %s" %self.myList.GetValue())
         self.currentBoard = self.myList.GetValue()
         self.serialText.Clear()
         self.serialText.WriteText( str(self.boardList[self.currentBoard]) )    
@@ -137,7 +137,7 @@ class PowerBoardPanel(wx.Panel):
         for strvals in status.values:
             if (strvals.key == "Serial Number"):
                 serial = int(strvals.value)
-        print "Adding: %s serial=%d" %(name,serial)
+        rospy.logerr("Adding: %s serial=%d" %(name,serial))
         self.myList.Append(str(name));
         self.boardList[name] = serial
 
@@ -157,7 +157,7 @@ class PowerBoardPanel(wx.Panel):
         
 
         for message in self._messages:
-            #print message
+            #rospy.logerr(message)
             for status in message.status:
                 if( (status.name.startswith("Power board") & (self.myList.FindString( status.name ) == wx.NOT_FOUND)) ):
                     self.addBoard( status )
@@ -193,8 +193,8 @@ class PowerBoardPanel(wx.Panel):
                     
 
 
-##                    print "Voltages: %.1f %.1f %.1f"%(self.voltages[0],self.voltages[1], self.voltages[2])
-##                    print "States: %s %s %s"%(self.breaker_state[0], self.breaker_state[1], self.breaker_state[2])
+##                    rospy.logerr("Voltages: %.1f %.1f %.1f"%(self.voltages[0],self.voltages[1], self.voltages[2]))
+##                    rospy.logerr("States: %s %s %s"%(self.breaker_state[0], self.breaker_state[1], self.breaker_state[2]))
 
                     self.breaker0_status.SetValue("%s @ %sV"%(self.breaker_state[0], self.voltages[0]))
                     self.breaker1_status.SetValue("%s @ %sV"%(self.breaker_state[1], self.voltages[1]))
@@ -242,87 +242,87 @@ class PowerBoardPanel(wx.Panel):
         try:
             self.power_control( self.boardList[self.currentBoard], 0, "start", 0)
         except rospy.ServiceException, e:
-            print "Service Call Failed: %s"%e
-        #print "Enable CB0"
+            rospy.logerr("Service Call Failed: %s"%e)
+        #rospy.logerr("Enable CB0")
     def EnableCB1(self, event):
         try:
             self.power_control( self.boardList[self.currentBoard], 1, "start", 0)
         except rospy.ServiceException, e:
-            print "Service Call Failed: %s"%e
-        #print "Enable CB1"
+            rospy.logerr("Service Call Failed: %s"%e)
+        #rospy.logerr("Enable CB1")
     def EnableCB2(self, event):
         try:
             self.power_control( self.boardList[self.currentBoard], 2, "start", 0)
         except rospy.ServiceException, e:
-            print "Service Call Failed: %s"%e
-        #print "Enable CB2"
+            rospy.logerr("Service Call Failed: %s"%e)
+        #rospy.logerr("Enable CB2")
 
     def StandbyCB0(self, event):
         try:
             self.power_control( self.boardList[self.currentBoard], 0, "stop", 0)
         except rospy.ServiceException, e:
-            print "Service Call Failed: %s"%e
-        #print "Standby CB0"
+            rospy.logerr("Service Call Failed: %s"%e)
+        #rospy.logerr("Standby CB0")
     def StandbyCB1(self, event):
         try:
             self.power_control( self.boardList[self.currentBoard], 1, "stop", 0)
         except rospy.ServiceException, e:
-            print "Service Call Failed: %s"%e
-        #print "Standby CB1"
+            rospy.logerr("Service Call Failed: %s"%e)
+        #rospy.logerr("Standby CB1")
     def StandbyCB2(self, event):
         try:
             self.power_control( self.boardList[self.currentBoard], 2, "stop", 0)
         except rospy.ServiceException, e:
-            print "Service Call Failed: %s"%e
-        #print "Standby CB2"
+            rospy.logerr("Service Call Failed: %s"%e)
+        #rospy.logerr("Standby CB2")
 
     def ResetCB0(self, event):
         try:
             self.power_control( self.boardList[self.currentBoard], 0, "reset", 0)
         except rospy.ServiceException, e:
-            print "Service Call Failed: %s"%e
-        #print "Reset CB0"
+            rospy.logerr("Service Call Failed: %s"%e)
+        #rospy.logerr("Reset CB0")
     def ResetCB1(self, event):
         try:
             self.power_control( self.boardList[self.currentBoard], 1, "reset", 0)
         except rospy.ServiceException, e:
-            print "Service Call Failed: %s"%e
-        #print "Reset CB1"
+            rospy.logerr("Service Call Failed: %s"%e)
+        #rospy.logerr("Reset CB1")
     def ResetCB2(self, event):
         try:
             self.power_control( self.boardList[self.currentBoard], 2, "reset", 0)
         except rospy.ServiceException, e:
-            print "Service Call Failed: %s"%e
-        #print "Reset CB2"
+            rospy.logerr("Service Call Failed: %s"%e)
+        #rospy.logerr("Reset CB2")
 
     def DisableCB0(self, event):
         try:
             self.power_control( self.boardList[self.currentBoard], 0, "disable", 0)
         except rospy.ServiceException, e:
-            print "Service Call Failed: %s"%e
-        #print "Disable CB0"
+            rospy.logerr("Service Call Failed: %s"%e)
+        #rospy.logerr("Disable CB0")
     def DisableCB1(self, event):
         try:
             self.power_control( self.boardList[self.currentBoard], 1, "disable", 0)
         except rospy.ServiceException, e:
-            print "Service Call Failed: %s"%e
-        #print "Disable CB1"
+            rospy.logerr("Service Call Failed: %s"%e)
+        #rospy.logerr("Disable CB1")
     def DisableCB2(self, event):
         try:
             self.power_control( self.boardList[self.currentBoard], 2, "disable", 0)
         except rospy.ServiceException, e:
-            print "Service Call Failed: %s"%e
-        #print "Disable CB2"
+            rospy.logerr("Service Call Failed: %s"%e)
+        #rospy.logerr("Disable CB2")
 
     def ResetCurrent(self, event):
         try:
             self.power_control( self.boardList[self.currentBoard], 0, "none", 1)
         except rospy.ServiceException, e:
-            print "Service Call Failed: %s"%e
+            rospy.logerr("Service Call Failed: %s"%e)
     def ResetTransitions(self, event):
         try:
             self.power_control( self.boardList[self.currentBoard], 0, "none", 2)
         except rospy.ServiceException, e:
-            print "Service Call Failed: %s"%e
+            rospy.logerr("Service Call Failed: %s"%e)
 
 
