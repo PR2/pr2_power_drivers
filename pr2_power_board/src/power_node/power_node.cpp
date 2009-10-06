@@ -843,6 +843,7 @@ void PowerBoard::sendMessages()
 
       pr2_msgs::PowerBoardState state_msg;
       state_msg.name = stat.name;
+      state_msg.serial_num = pmesg->header.serial_num;
       state_msg.input_voltage = status->input_voltage;
       state_msg.circuit_voltage[0] = status->CB0_voltage;
       state_msg.circuit_voltage[1] = status->CB1_voltage;
