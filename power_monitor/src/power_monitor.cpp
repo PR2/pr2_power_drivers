@@ -1,8 +1,9 @@
 
 #include <stdlib.h>
+#include <boost/thread/mutex.hpp>
 
 #include "ros/ros.h"
-#include "ros/node.h"
+#include "ros/node_handle.h"
 #include "pr2_msgs/PowerState.h"
 #include "pr2_msgs/BatteryServer.h"
 
