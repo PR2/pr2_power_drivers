@@ -309,7 +309,7 @@ int PowerBoard::send_command(unsigned int serial_number, int circuit_breaker, co
     return -1;
   }
 
-  ROS_DEBUG("circuit=%d command=%s flags=%x\n", circuit_breaker, command.c_str(), flags);
+  ROS_INFO("circuit=%d command=%s flags=%x\n", circuit_breaker, command.c_str(), flags);
 
   // Determine what command to send
   char command_enum = NONE;
@@ -366,7 +366,7 @@ int PowerBoard::send_command(unsigned int serial_number, int circuit_breaker, co
   errno = 0;
   for (unsigned xx = 0; xx < SendInterfaces.size(); ++xx)
   {
-    //ROS_INFO("Send on %s", inet_ntoa(SendInterfaces[xx]->ifc_address.sin_addr));
+    ROS_INFO("Send on %s", inet_ntoa(SendInterfaces[xx]->ifc_address.sin_addr));
     int result = send(SendInterfaces[xx]->send_sock, &cmdmsg, sizeof(cmdmsg), 0);
     if (result == -1) {
       ROS_ERROR("Error sending");
@@ -377,8 +377,8 @@ int PowerBoard::send_command(unsigned int serial_number, int circuit_breaker, co
     }
   }
 
-  ROS_DEBUG("Send to Serial=%u, revision=%u", cmdmsg.header.serial_num, cmdmsg.header.message_revision);
-  ROS_DEBUG("Sent command %s(%d) to device %d, circuit %d",
+  ROS_INFO("Send to Serial=%u, revision=%u", cmdmsg.header.serial_num, cmdmsg.header.message_revision);
+  ROS_INFO("Sent command %s(%d) to device %d, circuit %d",
          command.c_str(), command_enum, selected_device, circuit_breaker);
 
   return 0;
@@ -518,8 +518,8 @@ int PowerBoard::collect_messages()
   MessageHeader *header;
   char tmp_buf[256];  //bigger than our max size we expect
 
-  //ROS_DEBUG("PowerMessage size=%u", sizeof(PowerMessage));
-  //ROS_DEBUG("TransitionMessage size=%u", sizeof(TransitionMessage));
+  //ROS_INFO("PowerMessage size=%u", sizeof(PowerMessage));
+  //ROS_INFO("TransitionMessage size=%u", sizeof(TransitionMessage));
 
   timeval timeout;  //timeout once a second to check if we should die or not.
   timeout.tv_sec = 1;
@@ -571,7 +571,7 @@ int PowerBoard::collect_messages()
       header = (MessageHeader*)tmp_buf;
       {
 
-        //ROS_DEBUG("Header type=%d", header->message_id);
+        //ROS_INFO("Header type=%d", header->message_id);
         if(header->message_id == MESSAGE_ID_POWER)
         {
           power_msg = (PowerMessage*)tmp_buf;
@@ -603,7 +603,7 @@ int PowerBoard::collect_messages()
         }
         else
         {
-          ROS_DEBUG("Discard message len=%d", len);
+          ROS_INFO("Discard message len=%d", len);
         }
       }
     }
@@ -649,6 +649,7 @@ void PowerBoard::init()
 bool PowerBoard::commandCallback(pr2_power_board::PowerBoardCommand::Request &req_,
                      pr2_power_board::PowerBoardCommand::Response &res_)
 {
+  ROS_INFO("command callback");
   res_.retval = send_command( req_.serial_number, req_.breaker_number, req_.command, req_.flags);
 
   return true;
@@ -659,7 +660,7 @@ void PowerBoard::collectMessages()
   while(node_handle.ok())
   {
     collect_messages();
-    //ROS_DEBUG("*");
+    //ROS_INFO("*");
   }
 }
 
@@ -669,7 +670,7 @@ void PowerBoard::sendMessages()
   while(node_handle.ok())
   {
     r.sleep();
-    //ROS_DEBUG("-");
+    //ROS_INFO("-");
     boost::mutex::scoped_lock(library_lock_);
   
     for (unsigned i = 0; i<Devices.size(); ++i)
@@ -694,103 +695,103 @@ void PowerBoard::sendMessages()
       }
       const StatusStruct *status = &pmesg->status;
 
-      ROS_DEBUG("Device %u", i);
-      ROS_DEBUG(" Serial       = %u", pmesg->header.serial_num);
+      ROS_INFO("Device %u", i);
+      ROS_INFO(" Serial       = %u", pmesg->header.serial_num);
 
       stat.add("Serial Number", pmesg->header.serial_num);
 
-      ROS_DEBUG(" Current      = %f", status->input_current);
+      ROS_INFO(" Current      = %f", status->input_current);
       stat.add("Input Current", status->input_current);
 
-      ROS_DEBUG(" Voltages:");
-      ROS_DEBUG("  Input       = %f", status->input_voltage);
+      ROS_INFO(" Voltages:");
+      ROS_INFO("  Input       = %f", status->input_voltage);
       stat.add("Input Voltage", status->input_voltage);
       
-      ROS_DEBUG("  DCDC 12 aux = %f", status->DCDC_12V_aux);
+      ROS_INFO("  DCDC 12 aux = %f", status->DCDC_12V_aux);
       stat.add("DCDC 12V aux", status->DCDC_12V_aux);
       
-      ROS_DEBUG("  DCDC 12V cpu0   = %f", status->DCDC_12V_cpu0);
+      ROS_INFO("  DCDC 12V cpu0   = %f", status->DCDC_12V_cpu0);
       stat.add("DCDC 12V cpu0", status->DCDC_12V_cpu0);
       
-      ROS_DEBUG("  CB0 (Base)  = %f", status->CB0_voltage);
+      ROS_INFO("  CB0 (Base)  = %f", status->CB0_voltage);
       stat.add("Breaker 0 Voltage", status->CB0_voltage);
       
-      ROS_DEBUG("  CB1 (R-arm) = %f", status->CB1_voltage);
+      ROS_INFO("  CB1 (R-arm) = %f", status->CB1_voltage);
       stat.add("Breaker 1 Voltage", status->CB1_voltage);
       
-      ROS_DEBUG("  CB2 (L-arm) = %f", status->CB2_voltage);
+      ROS_INFO("  CB2 (L-arm) = %f", status->CB2_voltage);
       stat.add("Breaker 2 Voltage", status->CB2_voltage);
 
-      ROS_DEBUG(" Board Temp   = %f", status->ambient_temp);
+      ROS_INFO(" Board Temp   = %f", status->ambient_temp);
       stat.add("Board Temperature", status->ambient_temp);
       
-      ROS_DEBUG(" Fan Speeds:");
-      ROS_DEBUG("  Fan 0       = %u", status->fan0_speed);
+      ROS_INFO(" Fan Speeds:");
+      ROS_INFO("  Fan 0       = %u", status->fan0_speed);
       stat.add("Fan 0 Speed", status->fan0_speed);
       
-      ROS_DEBUG("  Fan 1       = %u", status->fan1_speed);
+      ROS_INFO("  Fan 1       = %u", status->fan1_speed);
       stat.add("Fan 1 Speed", status->fan1_speed);
       
-      ROS_DEBUG("  Fan 2       = %u", status->fan2_speed);
+      ROS_INFO("  Fan 2       = %u", status->fan2_speed);
       stat.add("Fan 2 Speed", status->fan2_speed);
       
-      ROS_DEBUG("  Fan 3       = %u", status->fan3_speed);
+      ROS_INFO("  Fan 3       = %u", status->fan3_speed);
       stat.add("Fan 3 Speed", status->fan3_speed);
 
-      ROS_DEBUG(" State:");
-      ROS_DEBUG("  CB0 (Base)  = %s", cb_state_to_str(status->CB0_state));
+      ROS_INFO(" State:");
+      ROS_INFO("  CB0 (Base)  = %s", cb_state_to_str(status->CB0_state));
       stat.add("Breaker 0 State", cb_state_to_str(status->CB0_state));
 
-      ROS_DEBUG("  CB1 (R-arm) = %s", cb_state_to_str(status->CB1_state));
+      ROS_INFO("  CB1 (R-arm) = %s", cb_state_to_str(status->CB1_state));
       stat.add("Breaker 1 State", cb_state_to_str(status->CB1_state));
 
-      ROS_DEBUG("  CB2 (L-arm) = %s", cb_state_to_str(status->CB2_state));
+      ROS_INFO("  CB2 (L-arm) = %s", cb_state_to_str(status->CB2_state));
       stat.add("Breaker 2 State", cb_state_to_str(status->CB2_state));
       
-      ROS_DEBUG("  DCDC        = %s", master_state_to_str(status->DCDC_state));
+      ROS_INFO("  DCDC        = %s", master_state_to_str(status->DCDC_state));
       stat.add("DCDC state", master_state_to_str(status->DCDC_state));
 
-      ROS_DEBUG(" Status:");
-      ROS_DEBUG("  CB0 (Base)  = %s", (status->CB0_status) ? "On" : "Off");
+      ROS_INFO(" Status:");
+      ROS_INFO("  CB0 (Base)  = %s", (status->CB0_status) ? "On" : "Off");
       stat.add("Breaker 0 Status", (status->CB0_status) ? "On" : "Off");
       
-      ROS_DEBUG("  CB1 (R-arm) = %s", (status->CB1_status) ? "On" : "Off");
+      ROS_INFO("  CB1 (R-arm) = %s", (status->CB1_status) ? "On" : "Off");
       stat.add("Breaker 1 Status", (status->CB1_status) ? "On" : "Off");
       
-      ROS_DEBUG("  CB2 (L-arm) = %s", (status->CB2_status) ? "On" : "Off");
+      ROS_INFO("  CB2 (L-arm) = %s", (status->CB2_status) ? "On" : "Off");
       stat.add("Breaker 2 Status", (status->CB2_status) ? "On" : "Off");
       
-      ROS_DEBUG("  estop_button= %x", (status->estop_button_status));
+      ROS_INFO("  estop_button= %x", (status->estop_button_status));
       stat.add("RunStop Button Status", (status->estop_button_status ? "True":"False"));
       
-      ROS_DEBUG("  estop_status= %x", (status->estop_status));
+      ROS_INFO("  estop_status= %x", (status->estop_status));
       stat.add("RunStop Status", (status->estop_status ? "True":"False"));
 
-      ROS_DEBUG(" Revisions:");
-      ROS_DEBUG("         PCA = %c", status->pca_rev);
+      ROS_INFO(" Revisions:");
+      ROS_INFO("         PCA = %c", status->pca_rev);
       stat.add("PCA", status->pca_rev);
 
-      ROS_DEBUG("         PCB = %c", status->pcb_rev);
+      ROS_INFO("         PCB = %c", status->pcb_rev);
       stat.add("PCB", status->pcb_rev);
 
-      ROS_DEBUG("       Major = %c", status->major_rev);
+      ROS_INFO("       Major = %c", status->major_rev);
       stat.add("Major Revision", status->major_rev);
       
-      ROS_DEBUG("       Minor = %c", status->minor_rev);
+      ROS_INFO("       Minor = %c", status->minor_rev);
       stat.add("Minor Revision", status->minor_rev);
 
       stat.add("Min Voltage", status->min_input_voltage);
       stat.add("Max Current", status->max_input_current);
 
-      ROS_DEBUG("  DCDC 12V cpu1   = %f", status->DCDC_12V_cpu1);
+      ROS_INFO("  DCDC 12V cpu1   = %f", status->DCDC_12V_cpu1);
       stat.add("DCDC 12V cpu1", status->DCDC_12V_cpu1);
 
-      ROS_DEBUG("  DCDC 12V user   = %f", status->DCDC_12V_user);
+      ROS_INFO("  DCDC 12V user   = %f", status->DCDC_12V_user);
       stat.add("DCDC 12V user", status->DCDC_12V_user);
       
       for( int xx = 0; xx < 4; ++xx)
       {
-        ROS_DEBUG("  Battery %d voltage=%f", xx, status->battery_voltage[xx]);
+        ROS_INFO("  Battery %d voltage=%f", xx, status->battery_voltage[xx]);
         ss.str("");
         ss << "Battery " << xx << " voltage=";
         stat.add(ss.str(), status->battery_voltage[xx]);
@@ -801,11 +802,11 @@ void PowerBoard::sendMessages()
       for(int cb_index=0; cb_index < 3; ++cb_index)
       {
         const TransitionCount *trans = &tmsg->cb[cb_index];
-        ROS_DEBUG("Transition: CB%d", cb_index);
+        ROS_INFO("Transition: CB%d", cb_index);
         ss.str("");
         ss << "CB" << cb_index << " Stop Count";
         stat.add(ss.str(), (int)trans->stop_count);
-        //ROS_DEBUG("  Stop Count=%d", trans->stop_count);
+        //ROS_INFO("  Stop Count=%d", trans->stop_count);
         
         ss.str("");
         ss << "CB" << cb_index << " E-Stop Count";
@@ -838,7 +839,7 @@ void PowerBoard::sendMessages()
 
       msg_out.status.push_back(stat);
 
-      //ROS_DEBUG("Publishing ");
+      //ROS_INFO("Publishing ");
       diags_pub.publish(msg_out);
 
       pr2_msgs::PowerBoardState state_msg;
@@ -911,15 +912,15 @@ int CreateAllInterfaces(void)
   if(ioctl( sock, SIOCGIFCONF, &get_io ) == 0)
   {
     int num_interfaces = get_io.ifc_len / sizeof(ifreq);
-    ROS_DEBUG("Got %d interfaces", num_interfaces);
+    ROS_INFO("Got %d interfaces", num_interfaces);
     for(int yy=0; yy < num_interfaces; ++yy)
     {
-      ROS_DEBUG("interface=%s", get_io.ifc_req[yy].ifr_name);
+      ROS_INFO("interface=%s", get_io.ifc_req[yy].ifr_name);
       if(get_io.ifc_req[yy].ifr_addr.sa_family == AF_INET)
       {
-        //ROS_DEBUG("ioctl: family=%d", get_io.ifc_req[yy].ifr_addr.sa_family);
+        //ROS_INFO("ioctl: family=%d", get_io.ifc_req[yy].ifr_addr.sa_family);
         sockaddr_in *addr = (sockaddr_in*)&get_io.ifc_req[yy].ifr_addr;
-        ROS_DEBUG("address=%s", inet_ntoa(addr->sin_addr) );
+        ROS_INFO("address=%s", inet_ntoa(addr->sin_addr) );
 
         if ((strncmp("lo", get_io.ifc_req[yy].ifr_name, strlen(get_io.ifc_req[yy].ifr_name)) == 0) ||
             (strncmp("tun", get_io.ifc_req[yy].ifr_name, 3) == 0) ||
@@ -946,7 +947,7 @@ int CreateAllInterfaces(void)
             {
               struct sockaddr_in *br_addr = (struct sockaddr_in *) &ifr->ifr_dstaddr;
 
-              ROS_DEBUG ("Broadcast addess %s", inet_ntoa(br_addr->sin_addr));
+              ROS_INFO ("Broadcast addess %s", inet_ntoa(br_addr->sin_addr));
 
               if (newInterface->Init(addr, br_addr))
               {
