@@ -288,11 +288,20 @@ int PowerBoard::send_command(unsigned int serial_number, int circuit_breaker, co
   }
 
   int selected_device = -1;
-  // Look for device serial number in list of devices...
-  for (unsigned i = 0; i<Devices.size(); ++i) {
-    if (Devices[i]->getPowerMessage().header.serial_num == serial_number) {
-      selected_device = i;
-      break;
+
+  if(serial_number == 0) {
+    if(Devices.size() > 1) {
+      fprintf(stderr,"Too many devices to send command to using serial_number=0\n");
+      return -1;
+    }
+    selected_device = 0;
+  } else {
+    // Look for device serial number in list of devices...
+    for (unsigned i = 0; i<Devices.size(); ++i) {
+      if (Devices[i]->getPowerMessage().header.serial_num == serial_number) {
+	selected_device = i;
+	break;
+      }
     }
   }
 
