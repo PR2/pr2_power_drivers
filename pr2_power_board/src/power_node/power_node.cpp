@@ -63,7 +63,7 @@
 using namespace std;
 namespace po = boost::program_options;
 
-// Keep a pointer to the last message recieved for
+// Keep a pointer to the last message received for
 // Each board.
 static std::vector<Device*> Devices;
 static std::vector<Interface*> SendInterfaces;
@@ -166,7 +166,7 @@ int Interface::InitReceive()
     return -1;
   }
 
- // Allow reuse of recieve port
+ // Allow reuse of receive port
   int opt = 1;
   if (setsockopt(recv_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
     perror("Couldn't set reuse addr on recv socket\n");
@@ -182,7 +182,7 @@ int Interface::InitReceive()
     return -1;
   }
 
-  // Bind socket to recieve packets on <UDP_STATUS_PORT> from any address/interface
+  // Bind socket to receive packets on <UDP_STATUS_PORT> from any address/interface
   struct sockaddr_in sin;
   memset(&sin, 0, sizeof(sin));
   sin.sin_family = AF_INET;
@@ -216,7 +216,7 @@ int Interface::Init(sockaddr_in *port_address, sockaddr_in *broadcast_address)
   }
 
 
- // Allow reuse of recieve port
+ // Allow reuse of receive port
   int opt;
 #if 0
   opt = 1;
@@ -242,7 +242,7 @@ int Interface::Init(sockaddr_in *port_address, sockaddr_in *broadcast_address)
     return -1;
   }
 
-  // Bind socket to recieve packets on <UDP_STATUS_PORT> from any address/interface
+  // Bind socket to receive packets on <UDP_STATUS_PORT> from any address/interface
   struct sockaddr_in sin;
   memset(&sin, 0, sizeof(sin));
   sin.sin_family = AF_INET;
@@ -257,7 +257,7 @@ int Interface::Init(sockaddr_in *port_address, sockaddr_in *broadcast_address)
   }
 #endif
 
-  // Connect send socket to use broadcast address and same port as recieve sock
+  // Connect send socket to use broadcast address and same port as receive sock
   sin.sin_port = htons(POWER_PORT);
   //sin.sin_addr.s_addr = INADDR_BROADCAST; //inet_addr("192.168.10.255");
   sin.sin_addr= broadcast_address->sin_addr;
@@ -431,10 +431,10 @@ int PowerBoard::process_message(const PowerMessage *msg, int len)
   }
 
   if ((msg->header.message_revision == CURRENT_MESSAGE_REVISION) && (len != CURRENT_MESSAGE_SIZE))
-    ROS_ERROR("recieved message of incorrect size %d for rev=%d\n", len, msg->header.message_revision);
+    ROS_ERROR("received message of incorrect size %d for rev=%d\n", len, msg->header.message_revision);
 
   if ((msg->header.message_revision == MINIMUM_MESSAGE_REVISION) && (len != REVISION_2_MESSAGE_SIZE))
-    ROS_ERROR("recieved message of incorrect size %d for rev=%d\n", len, msg->header.message_revision);
+    ROS_ERROR("received message of incorrect size %d for rev=%d\n", len, msg->header.message_revision);
 
 
   // Look for device serial number in list of devices...
@@ -476,7 +476,7 @@ int PowerBoard::process_transition_message(const TransitionMessage *msg, int len
   }
 
   if (len != sizeof(TransitionMessage)) {
-    ROS_ERROR("recieved message of incorrect size %d\n", len);
+    ROS_ERROR("received message of incorrect size %d\n", len);
     return -2;
   }
 
@@ -549,7 +549,7 @@ int PowerBoard::collect_messages()
       Interface *recvInterface = ReceiveInterface;
 #if 0
       for (unsigned i = 0; i<SendInterfaces.size(); ++i) {
-        //figure out which interface we recieved on
+        //figure out which interface we received on
         if (SendInterfaces[i]->IsReadSet(read_set)) {
           recvInterface = SendInterfaces[i];
           //ROS_INFO("Receive index=%d", i);
@@ -565,7 +565,7 @@ int PowerBoard::collect_messages()
         return -1;
       }
       else if (len < (int)sizeof(MessageHeader)) {
-        ROS_ERROR("recieved message of incorrect size %d\n", len);
+        ROS_ERROR("received message of incorrect size %d\n", len);
       }
 
       header = (MessageHeader*)tmp_buf;
@@ -581,7 +581,7 @@ int PowerBoard::collect_messages()
           }
 /*
           else if (len != (int)sizeof(PowerMessage)) {
-            ROS_ERROR("recieved message of incorrect size %d\n", len);
+            ROS_ERROR("received message of incorrect size %d\n", len);
           }
 */
           else {
