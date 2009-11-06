@@ -71,6 +71,7 @@ static PowerBoard *myBoard;
 static Interface* ReceiveInterface;
 
 static const ros::Duration TIMEOUT = ros::Duration(1,0);
+static const ros::Duration MSG_RATE = ros::Duration(0,5e8);
 
 
 void Device::setTransitionMessage(const TransitionMessage &newtmsg)
@@ -659,8 +660,8 @@ void PowerBoard::init()
 bool PowerBoard::commandCallback(pr2_power_board::PowerBoardCommand::Request &req_,
                      pr2_power_board::PowerBoardCommand::Response &res_)
 {
-  ROS_INFO("commandCallback");
   res_.retval = send_command( req_.serial_number, req_.breaker_number, req_.command, req_.flags);
+  requestMessage();
 
   return true;
 }
@@ -869,6 +870,39 @@ void PowerBoard::sendMessages()
   }
 }
 
+int PowerBoard::requestMessage()
+{
+  //Device* device = Devices[0];
+
+  GetMessage cmdmsg;
+  memset(&cmdmsg, 0, sizeof(cmdmsg));
+  cmdmsg.header.message_revision = STATUS_MESSAGE_REVISION;
+  cmdmsg.header.message_id = MESSAGE_ID_STATUS;
+  //cmdmsg.header.serial_num = device->getPowerMessage().header.serial_num;
+  cmdmsg.header.serial_num = 1020;
+  strncpy(cmdmsg.header.text, "power status message", sizeof(cmdmsg.header.text));
+
+  cmdmsg.message_to_get = MESSAGE_ID_POWER;
+
+  errno = 0;
+  for (unsigned xx = 0; xx < SendInterfaces.size(); ++xx)
+  {
+    ROS_INFO("Send on %s", inet_ntoa(SendInterfaces[xx]->ifc_address.sin_addr));
+    int result = send(SendInterfaces[xx]->send_sock, &cmdmsg, sizeof(cmdmsg), 0);
+    if (result == -1) {
+      ROS_ERROR("Error sending");
+      return -1;
+    } else if (result != sizeof(cmdmsg)) {
+      ROS_WARN("Error sending : send only took %d of %d bytes\n",
+              result, sizeof(cmdmsg));
+    }
+  }
+
+  ROS_DEBUG("GetMessage to Serial=%u, revision=%u", cmdmsg.header.serial_num, cmdmsg.header.message_revision);
+  return 0;
+}
+
+
 void getMessages()
 {
   myBoard->collectMessages();
@@ -1010,38 +1044,6 @@ int CreateAllInterfaces(void)
   return 0;
 }
 
-int requestMessage()
-{
-  //Device* device = Devices[0];
-
-  GetMessage cmdmsg;
-  memset(&cmdmsg, 0, sizeof(cmdmsg));
-  cmdmsg.header.message_revision = STATUS_MESSAGE_REVISION;
-  cmdmsg.header.message_id = MESSAGE_ID_STATUS;
-  //cmdmsg.header.serial_num = device->getPowerMessage().header.serial_num;
-  cmdmsg.header.serial_num = 1020;
-  strncpy(cmdmsg.header.text, "power status message", sizeof(cmdmsg.header.text));
-
-  cmdmsg.message_to_get = MESSAGE_ID_POWER;
-
-  errno = 0;
-  for (unsigned xx = 0; xx < SendInterfaces.size(); ++xx)
-  {
-    ROS_INFO("Send on %s", inet_ntoa(SendInterfaces[xx]->ifc_address.sin_addr));
-    int result = send(SendInterfaces[xx]->send_sock, &cmdmsg, sizeof(cmdmsg), 0);
-    if (result == -1) {
-      ROS_ERROR("Error sending");
-      return -1;
-    } else if (result != sizeof(cmdmsg)) {
-      ROS_WARN("Error sending : send only took %d of %d bytes\n",
-              result, sizeof(cmdmsg));
-    }
-  }
-
-  ROS_DEBUG("GetMessage to Serial=%u, revision=%u", cmdmsg.header.serial_num, cmdmsg.header.message_revision);
-  return 0;
-}
-
 int main(int argc, char** argv)
 {
   unsigned int serial_option;
@@ -1071,14 +1073,23 @@ int main(int argc, char** argv)
   boost::thread getThread( &getMessages );
   boost::thread sendThread( &sendMessages );
 
-  ros::spin(); //wait for ros to shut us down
 #if 0
-  ros::Rate r(1);
+  //ros::spin(); //wait for ros to shut us down
+#else
+
+  ros::Time last_time = ros::Time::now();
+
+  ros::Rate r(10);
   while(handle.ok())
   {
     r.sleep();
-    requestMessage();
-    //ROS_INFO("Send ");
+    if( (ros::Time::now() - last_time) > MSG_RATE )
+    {
+      myBoard->requestMessage();
+      //ROS_INFO("Send ");
+      last_time = ros::Time::now();
+    }
+    ros::spinOnce();
   }
 #endif
 
