@@ -11,17 +11,15 @@ class Interface
 {
   public:
 
-    struct ifreq interface;
     int recv_sock;
     int send_sock;
-    Interface(const char* ifname);
+    Interface();
     ~Interface() {Close();}
     void Close();
     int Init( const std::string &address_str);
-    int InitReceive();
+    int InitReceive(const std::string &address_str);
     void AddToReadSet(fd_set &set, int &max_sock) const;
     bool IsReadSet(fd_set set) const;
-    sockaddr_in ifc_address;
 };
 
 
@@ -55,7 +53,7 @@ class Device
 class PowerBoard
 {
   public:
-    PowerBoard( const ros::NodeHandle node_handle, unsigned int serial_number = 0 );
+    PowerBoard( const ros::NodeHandle node_handle );
     bool commandCallback( pr2_power_board::PowerBoardCommand::Request &req_,
                           pr2_power_board::PowerBoardCommand::Response &res_);
 
@@ -80,5 +78,4 @@ class PowerBoard
     pr2_power_board::PowerBoardCommand::Request req_;
     pr2_power_board::PowerBoardCommand::Response res_;
     boost::mutex library_lock_;
-    unsigned int serial_number;
 };
