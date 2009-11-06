@@ -53,7 +53,7 @@
 #include <sys/ioctl.h>
 
 #include "power_comm.h"
-#include "power_node.h"
+#include "power_node2.h"
 #include "diagnostic_msgs/DiagnosticArray.h"
 #include "diagnostic_updater/DiagnosticStatusWrapper.h"
 #include "pr2_msgs/PowerBoardState.h"
