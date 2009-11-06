@@ -200,7 +200,7 @@ int Interface::InitReceive()
 int Interface::Init(sockaddr_in *port_address, sockaddr_in *broadcast_address)
 {
 
-  memcpy( &ifc_address, broadcast_address, sizeof(sockaddr_in));
+  //memcpy( &ifc_address, broadcast_address, sizeof(sockaddr_in));
 #if 0
   recv_sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
   if (recv_sock == -1) {
@@ -236,7 +236,7 @@ int Interface::Init(sockaddr_in *port_address, sockaddr_in *broadcast_address)
 #endif
   // All recieving packets sent to broadcast address
   opt = 1;
-  if (setsockopt(send_sock, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt))) {
+  if (setsockopt(send_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
     perror("Setting broadcast option on send");
     Close();
     return -1;
@@ -259,8 +259,9 @@ int Interface::Init(sockaddr_in *port_address, sockaddr_in *broadcast_address)
 
   // Connect send socket to use broadcast address and same port as receive sock
   sin.sin_port = htons(POWER_PORT);
-  //sin.sin_addr.s_addr = INADDR_BROADCAST; //inet_addr("192.168.10.255");
-  sin.sin_addr= broadcast_address->sin_addr;
+  //sin.sin_addr.s_addr = inet_addr("192.168.13.19");
+  //sin.sin_addr= broadcast_address->sin_addr;
+  inet_pton( AF_INET, "192.168.13.19", &sin.sin_addr);
   if (connect(send_sock, (struct sockaddr*)&sin, sizeof(sin))) {
     perror("Connect'ing socket failed");
     Close();
@@ -913,6 +914,20 @@ int CreateAllInterfaces(void)
     return -1;
   }
 
+  Interface *newInterface = new Interface("eth0");
+  if (newInterface->Init(0, 0))
+  {
+    ROS_ERROR("Error initializing interface");
+    delete newInterface;
+    newInterface = NULL;
+  }
+  else
+  {
+    // Interface is good add it to interface list
+    SendInterfaces.push_back(newInterface);
+  }
+
+#if 0
   struct ifconf get_io;
   get_io.ifc_req = new ifreq[10];
   get_io.ifc_len = sizeof(ifreq) * 10;
@@ -986,10 +1001,43 @@ int CreateAllInterfaces(void)
   }
 
   delete[] get_io.ifc_req;
+#endif
 
   setupReceive();
   //ROS_INFO("Found %d usable interfaces", Interfaces.size());
 
+  return 0;
+}
+
+int getMessage()
+{
+  //Device* device = Devices[0];
+
+  GetMessage cmdmsg;
+  memset(&cmdmsg, 0, sizeof(cmdmsg));
+  cmdmsg.header.message_revision = COMMAND_MESSAGE_REVISION;
+  cmdmsg.header.message_id = MESSAGE_ID_STATUS;
+  //cmdmsg.header.serial_num = device->getPowerMessage().header.serial_num;
+  cmdmsg.header.serial_num = 1005;
+  strncpy(cmdmsg.header.text, "power status message", sizeof(cmdmsg.header.text));
+
+  cmdmsg.message_to_get = MESSAGE_ID_POWER;
+
+  errno = 0;
+  for (unsigned xx = 0; xx < SendInterfaces.size(); ++xx)
+  {
+    ROS_INFO("Send on %s", inet_ntoa(SendInterfaces[xx]->ifc_address.sin_addr));
+    int result = send(SendInterfaces[xx]->send_sock, &cmdmsg, sizeof(cmdmsg), 0);
+    if (result == -1) {
+      ROS_ERROR("Error sending");
+      return -1;
+    } else if (result != sizeof(cmdmsg)) {
+      ROS_WARN("Error sending : send only took %d of %d bytes\n",
+              result, sizeof(cmdmsg));
+    }
+  }
+
+  ROS_DEBUG("GetMessage to Serial=%u, revision=%u", cmdmsg.header.serial_num, cmdmsg.header.message_revision);
   return 0;
 }
 
@@ -1022,7 +1070,14 @@ int main(int argc, char** argv)
   boost::thread getThread( &getMessages );
   boost::thread sendThread( &sendMessages );
 
-  ros::spin(); //wait for ros to shut us down
+  //ros::spin(); //wait for ros to shut us down
+  ros::Rate r(1);
+  while(handle.ok())
+  {
+    r.sleep();
+    getMessage();
+    //ROS_INFO("Send ");
+  }
 
   sendThread.join();
   getThread.join();

@@ -41,6 +41,7 @@ static const unsigned COMMAND_MESSAGE_REVISION = 2;
 static const unsigned MESSAGE_ID_POWER = 0;
 static const unsigned MESSAGE_ID_COMMAND = 1;
 static const unsigned MESSAGE_ID_TRANSITION = 2;
+static const unsigned MESSAGE_ID_STATUS = 3;
 static const unsigned POWER_PORT = 6801; // port power board
 
 enum Master_State { MASTER_NOPOWER, MASTER_STANDBY, MASTER_ON, MASTER_OFF };
@@ -174,5 +175,12 @@ typedef struct
   MessageHeader header;
   TransitionCount cb[3]; // one for each circuit breaker
 } __attribute__((__packed__)) TransitionMessage;
+
+
+typedef struct 
+{
+	MessageHeader header;
+  unsigned int message_to_get;
+} __attribute__((__packed__)) GetMessage;
 
 #endif
