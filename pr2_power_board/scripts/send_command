@@ -54,10 +54,12 @@ def power_board_client(serial, breaker_number, command, flags):
 
     # block until the add_two_ints service is available
     rospy.wait_for_service('power_board_control')
+    print "Found Service"
     
     try:
         # create a handle to the add_two_ints service
         control = rospy.ServiceProxy('power_board_control', PowerBoardCommand)
+        print "Got control handle"
         
         print "Requesting %d to %s"%(breaker_number, command)
         
