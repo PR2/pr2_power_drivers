@@ -53,7 +53,7 @@ def power_board_client(serial, breaker_number, command, flags):
     # nodes.
 
     # block until the add_two_ints service is available
-    rospy.wait_for_service('power_board_control')
+    rospy.wait_for_service('power_board_control', 5)
     print "Found Service"
     
     try:
