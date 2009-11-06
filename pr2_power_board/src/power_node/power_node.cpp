@@ -261,7 +261,7 @@ int Interface::Init(sockaddr_in *port_address, sockaddr_in *broadcast_address)
   sin.sin_port = htons(POWER_PORT);
   //sin.sin_addr.s_addr = inet_addr("192.168.13.19");
   //sin.sin_addr= broadcast_address->sin_addr;
-  inet_pton( AF_INET, "192.168.13.19", &sin.sin_addr);
+  inet_pton( AF_INET, "192.168.10.19", &sin.sin_addr);
   if (connect(send_sock, (struct sockaddr*)&sin, sizeof(sin))) {
     perror("Connect'ing socket failed");
     Close();
@@ -1018,7 +1018,7 @@ int getMessage()
   cmdmsg.header.message_revision = COMMAND_MESSAGE_REVISION;
   cmdmsg.header.message_id = MESSAGE_ID_STATUS;
   //cmdmsg.header.serial_num = device->getPowerMessage().header.serial_num;
-  cmdmsg.header.serial_num = 1005;
+  cmdmsg.header.serial_num = 1020;
   strncpy(cmdmsg.header.text, "power status message", sizeof(cmdmsg.header.text));
 
   cmdmsg.message_to_get = MESSAGE_ID_POWER;
@@ -1068,7 +1068,7 @@ int main(int argc, char** argv)
   myBoard->init();
 
   boost::thread getThread( &getMessages );
-  boost::thread sendThread( &sendMessages );
+  //boost::thread sendThread( &sendMessages );
 
   //ros::spin(); //wait for ros to shut us down
   ros::Rate r(1);
@@ -1079,7 +1079,7 @@ int main(int argc, char** argv)
     //ROS_INFO("Send ");
   }
 
-  sendThread.join();
+  //sendThread.join();
   getThread.join();
 
   CloseAllDevices();
