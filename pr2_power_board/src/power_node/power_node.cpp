@@ -198,7 +198,7 @@ int Interface::InitReceive()
   return 0;
 }
 
-int Interface::Init(sockaddr_in *port_address, sockaddr_in *broadcast_address)
+int Interface::Init( const std::string &address_str)
 {
 
   //memcpy( &ifc_address, broadcast_address, sizeof(sockaddr_in));
@@ -262,7 +262,7 @@ int Interface::Init(sockaddr_in *port_address, sockaddr_in *broadcast_address)
   sin.sin_port = htons(POWER_PORT);
   //sin.sin_addr.s_addr = inet_addr("192.168.13.19");
   //sin.sin_addr= broadcast_address->sin_addr;
-  inet_pton( AF_INET, "192.168.10.19", &sin.sin_addr);
+  inet_pton( AF_INET, address_str.c_str(), &sin.sin_addr);
   if (connect(send_sock, (struct sockaddr*)&sin, sizeof(sin))) {
     perror("Connect'ing socket failed");
     Close();
@@ -940,7 +940,7 @@ void setupReceive()
 
 
 // Build list of interfaces
-int CreateAllInterfaces(void)
+int CreateAllInterfaces(const std::string &address_str)
 {
   //
   int sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -950,7 +950,7 @@ int CreateAllInterfaces(void)
   }
 
   Interface *newInterface = new Interface("eth0");
-  if (newInterface->Init(0, 0))
+  if (newInterface->Init(address_str))
   {
     ROS_ERROR("Error initializing interface");
     delete newInterface;
@@ -1047,10 +1047,12 @@ int CreateAllInterfaces(void)
 int main(int argc, char** argv)
 {
   unsigned int serial_option;
+  std::string address_str;
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help", "this help message")
-    ("serial", po::value<unsigned int>(&serial_option)->default_value(0), "filter a specific serial number");
+    ("serial", po::value<unsigned int>(&serial_option)->default_value(0), "filter a specific serial number")
+    ("address", po::value<std::string>(&address_str)->default_value("0.0.0.0"), "IP address for specific Power Board");
 
   po::variables_map vm;
   po::store(po::parse_command_line( argc, argv, desc), vm);
@@ -1062,9 +1064,16 @@ int main(int argc, char** argv)
     return 1;
   }
 
+  ROS_INFO("PowerNode:Using Address=%s", address_str.c_str());
+  if( address_str.compare("0.0.0.0") == 0 )
+  {
+    ROS_ERROR("PowerNode: Error you did not specify the IP address");
+    exit(-1);
+  }
+
   ros::init(argc, argv, "PowerBoard");
 
-  CreateAllInterfaces();
+  CreateAllInterfaces(address_str);
 
   ros::NodeHandle handle;
   myBoard = new PowerBoard( handle, serial_option);

@@ -2,6 +2,7 @@
 #pragma once
 
 #include <time.h>
+#include <string>
 #include "ros/ros.h"
 #include "pr2_power_board/PowerBoardCommand.h"
 #include "boost/thread/mutex.hpp"
@@ -16,7 +17,7 @@ class Interface
     Interface(const char* ifname);
     ~Interface() {Close();}
     void Close();
-    int Init(sockaddr_in *port_address, sockaddr_in *broadcast_address);
+    int Init( const std::string &address_str);
     int InitReceive();
     void AddToReadSet(fd_set &set, int &max_sock) const;
     bool IsReadSet(fd_set set) const;
