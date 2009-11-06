@@ -188,6 +188,7 @@ int Interface::InitReceive(const std::string &address_str)
   sin.sin_port = htons(POWER_PORT);
   sin.sin_addr.s_addr = (INADDR_ANY);
   //inet_pton( AF_INET, address_str.c_str(), &sin.sin_addr);
+  //inet_pton( AF_INET, "192.168.10.10", &sin.sin_addr);
   if (bind(recv_sock, (struct sockaddr*)&sin, sizeof(sin))) {
     perror("Couldn't Bind socket to port");
     Close();
@@ -413,7 +414,6 @@ int PowerBoard::collect_messages()
 {
   PowerMessage *power_msg;
   TransitionMessage *transition_msg;
-  MessageHeader *header;
   char tmp_buf[256];  //bigger than our max size we expect
 
   //ROS_DEBUG("PowerMessage size=%u", sizeof(PowerMessage));
@@ -446,8 +446,11 @@ int PowerBoard::collect_messages()
     else if (result >= 1) {
       Interface *recvInterface = ReceiveInterface;
 
+      struct sockaddr_in crap;
+      socklen_t sock_len = sizeof(crap);
+
       //ROS_INFO("Receive on %s", inet_ntoa(((struct sockaddr_in *)(&recvInterface->interface.ifr_dstaddr))->sin_addr));
-      int len = recv(recvInterface->recv_sock, tmp_buf, sizeof(tmp_buf), 0);
+      int len = recvfrom(recvInterface->recv_sock, tmp_buf, sizeof(tmp_buf), 0, (sockaddr*)&crap, &sock_len);
       if (len == -1) {
         ROS_ERROR("Error recieving on socket");
         return -1;
@@ -456,8 +459,16 @@ int PowerBoard::collect_messages()
         ROS_ERROR("received message of incorrect size %d\n", len);
       }
 
-      header = (MessageHeader*)tmp_buf;
+#if 0
+      char str[INET_ADDRSTRLEN];
+      inet_ntop(AF_INET, &(crap.sin_addr), str, INET_ADDRSTRLEN);
+      ROS_DEBUG("received from = %s", str);
+#endif
+
+      if(crap.sin_addr.s_addr == ip_address )
       {
+        MessageHeader *header;
+        header = (MessageHeader*)tmp_buf;
 
         //ROS_DEBUG("Header type=%d", header->message_id);
         if(header->message_id == MESSAGE_ID_POWER)
@@ -504,7 +515,7 @@ int PowerBoard::collect_messages()
   return 0;
 }
 
-PowerBoard::PowerBoard( const ros::NodeHandle node_handle ) : node_handle(node_handle)
+PowerBoard::PowerBoard( const ros::NodeHandle node_handle, const std::string &address_str ) : node_handle(node_handle)
 {
   ROSCONSOLE_AUTOINIT;
   log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
@@ -515,6 +526,10 @@ PowerBoard::PowerBoard( const ros::NodeHandle node_handle ) : node_handle(node_h
     // Set the ROS logger
     my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Info]);
   }
+
+  sockaddr_in sin;
+  inet_pton( AF_INET, address_str.c_str(), &sin.sin_addr);
+  ip_address = sin.sin_addr.s_addr;
 
 }
 
@@ -846,7 +861,7 @@ int main(int argc, char** argv)
   CreateAllInterfaces(address_str);
 
   ros::NodeHandle handle;
-  myBoard = new PowerBoard( handle );
+  myBoard = new PowerBoard( handle, address_str );
   myBoard->init();
 
   boost::thread getThread( &getMessages );

@@ -53,7 +53,7 @@ class Device
 class PowerBoard
 {
   public:
-    PowerBoard( const ros::NodeHandle node_handle );
+    PowerBoard( const ros::NodeHandle node_handle, const std::string &address_str );
     bool commandCallback( pr2_power_board::PowerBoardCommand::Request &req_,
                           pr2_power_board::PowerBoardCommand::Response &res_);
 
@@ -78,4 +78,5 @@ class PowerBoard
     pr2_power_board::PowerBoardCommand::Request req_;
     pr2_power_board::PowerBoardCommand::Response res_;
     boost::mutex library_lock_;
+    uint64_t ip_address;
 };

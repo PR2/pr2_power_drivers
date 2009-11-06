@@ -181,7 +181,7 @@ typedef struct
 typedef struct 
 {
 	MessageHeader header;
-  unsigned int message_to_get;
+  int message_to_get;
 } __attribute__((__packed__)) GetMessage;
 
 #endif
