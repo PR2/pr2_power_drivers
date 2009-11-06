@@ -37,6 +37,7 @@ static const unsigned MINIMUM_MESSAGE_REVISION = 2;
 
 static const unsigned TRANSITION_MESSAGE_REVISION = 2;
 static const unsigned COMMAND_MESSAGE_REVISION = 2;
+static const unsigned STATUS_MESSAGE_REVISION = 2;
 
 static const unsigned MESSAGE_ID_POWER = 0;
 static const unsigned MESSAGE_ID_COMMAND = 1;

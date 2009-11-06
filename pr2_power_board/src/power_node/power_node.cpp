@@ -1009,13 +1009,13 @@ int CreateAllInterfaces(void)
   return 0;
 }
 
-int getMessage()
+int requestMessage()
 {
   //Device* device = Devices[0];
 
   GetMessage cmdmsg;
   memset(&cmdmsg, 0, sizeof(cmdmsg));
-  cmdmsg.header.message_revision = COMMAND_MESSAGE_REVISION;
+  cmdmsg.header.message_revision = STATUS_MESSAGE_REVISION;
   cmdmsg.header.message_id = MESSAGE_ID_STATUS;
   //cmdmsg.header.serial_num = device->getPowerMessage().header.serial_num;
   cmdmsg.header.serial_num = 1020;
@@ -1071,11 +1071,11 @@ int main(int argc, char** argv)
   //boost::thread sendThread( &sendMessages );
 
   //ros::spin(); //wait for ros to shut us down
-  ros::Rate r(1);
+  ros::Rate r(0.1);
   while(handle.ok())
   {
     r.sleep();
-    getMessage();
+    requestMessage();
     //ROS_INFO("Send ");
   }
 
