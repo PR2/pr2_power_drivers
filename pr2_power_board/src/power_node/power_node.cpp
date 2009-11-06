@@ -71,7 +71,6 @@ static Interface *ReceiveInterface;
 static PowerBoard *myBoard;
 
 static const ros::Duration TIMEOUT = ros::Duration(1,0);
-static const ros::Duration MSG_RATE = ros::Duration(0,5e8);
 
 
 void Device::setTransitionMessage(const TransitionMessage &newtmsg)
@@ -852,9 +851,20 @@ int main(int argc, char** argv)
   boost::thread getThread( &getMessages );
   boost::thread sendThread( &sendMessages );
 
+  double sample_frequency = 10; //In Hertz
+  handle.getParam( "/power_node/sample_frequency", sample_frequency );
+  ROS_INFO("Using sampling frequency %fHz", sample_frequency);
+
   ros::Time last_time = ros::Time::now();
 
-  ros::Rate r(10);
+  double ros_rate = 10;
+
+  if(sample_frequency > ros_rate)
+    ros_rate = sample_frequency;
+
+  ros::Rate r(ros_rate);
+  const ros::Duration MSG_RATE(1/sample_frequency);
+
   while(handle.ok())
   {
     r.sleep();
