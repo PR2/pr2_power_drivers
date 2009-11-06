@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 2.4.6)
 include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
-rospack(pr2_power_board)
+rosbuild_init(pr2_power_board)
 
-gensrv()
+rosbuild_gensrv()
 
 set(EXECUTABLE_OUTPUT_PATH ${pr2_power_board_SOURCE_DIR}/bin)
 add_subdirectory(src)
