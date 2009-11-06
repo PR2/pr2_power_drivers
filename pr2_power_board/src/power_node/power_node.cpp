@@ -821,7 +821,7 @@ int main(int argc, char** argv)
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help", "this help message")
-    ("address", po::value<std::string>(&address_str)->default_value("0.0.0.0"), "IP address for specific Power Board");
+    ("address", po::value<std::string>(&address_str), "IP address for specific Power Board");
 
   po::variables_map vm;
   po::store(po::parse_command_line( argc, argv, desc), vm);
@@ -833,12 +833,13 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  ROS_INFO("PowerNode:Using Address=%s", address_str.c_str());
-  if( address_str.compare("0.0.0.0") == 0 )
+  if( vm.count("address") == 0 )
   {
-    ROS_ERROR("PowerNode: Error you did not specify the IP address");
+    ROS_ERROR("PowerNode: Error you did not specify the IP address, use --address= to specify the address of the power board.");
     exit(-1);
   }
+
+  ROS_INFO("PowerNode:Using Address=%s", address_str.c_str());
 
   ros::init(argc, argv, "PowerBoard");
 
