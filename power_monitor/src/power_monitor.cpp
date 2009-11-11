@@ -90,7 +90,7 @@ class PowerMonitor
         powerState.time_remaining = maxTime;
       else
         powerState.time_remaining = minTime;
-      powerState.prediction_method = "fuel guage";
+      powerState.prediction_method = "fuel gauge";
       powerState.relative_capacity = minCapacity;
 
       pub.publish(powerState);
