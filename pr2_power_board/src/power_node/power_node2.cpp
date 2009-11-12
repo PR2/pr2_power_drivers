@@ -245,12 +245,12 @@ bool Interface::IsReadSet(fd_set set) const {
   return FD_ISSET(recv_sock,&set);
 }
 
-int PowerBoard::send_command(unsigned int serial_number, int circuit_breaker, const std::string &command, unsigned flags)
+int PowerBoard::send_command( int circuit_breaker, const std::string &command, unsigned flags)
 {
   assert(devicePtr != NULL);
 
-  if ((circuit_breaker < 0) || (circuit_breaker > 2)) {
-    fprintf(stderr, "Circuit breaker number must be between 0 and 2\n");
+  if ((circuit_breaker < 0) || (circuit_breaker >= pr2_power_board::PowerBoardCommand2::Request::NUMBER_OF_CIRCUITS)) {
+    fprintf(stderr, "Circuit breaker number must be between 0 and %d\n", pr2_power_board::PowerBoardCommand2::Request::NUMBER_OF_CIRCUITS);
     return -1;
   }
 
@@ -535,10 +535,10 @@ PowerBoard::PowerBoard( const ros::NodeHandle node_handle, const std::string &ad
 
 void PowerBoard::init()
 {
-  //ROS_INFO("PowerBoard: created with serial number = %d", serial_number);
   devicePtr = new Device();
 
   service = node_handle.advertiseService("power_board_control", &PowerBoard::commandCallback, this);
+  service = node_handle.advertiseService("power_board_control2", &PowerBoard::commandCallback2, this);
 
   diags_pub = node_handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
   state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("/power_board_state", 2);
@@ -547,7 +547,23 @@ void PowerBoard::init()
 bool PowerBoard::commandCallback(pr2_power_board::PowerBoardCommand::Request &req_,
                      pr2_power_board::PowerBoardCommand::Response &res_)
 {
-  res_.retval = send_command( req_.serial_number, req_.breaker_number, req_.command, req_.flags);
+  res_.retval = send_command( req_.breaker_number, req_.command, req_.flags);
+  requestMessage();
+
+  return true;
+}
+
+bool PowerBoard::commandCallback2(pr2_power_board::PowerBoardCommand2::Request &req_,
+                     pr2_power_board::PowerBoardCommand2::Response &res_)
+{
+  
+  unsigned flags = 0;
+  if(req_.reset_stats)
+    flags |= 0x1;
+  if(req_.reset_circuits)
+    flags |= 0x2;
+
+  res_.success = send_command( req_.circuit, req_.command, flags);
   requestMessage();
 
   return true;

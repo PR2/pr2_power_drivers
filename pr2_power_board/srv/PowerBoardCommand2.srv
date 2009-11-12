@@ -1,3 +1,4 @@
+int32 NUMBER_OF_CIRCUITS = 3
 #
 # Select which circuit to command
 #

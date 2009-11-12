@@ -5,6 +5,7 @@
 #include <string>
 #include "ros/ros.h"
 #include "pr2_power_board/PowerBoardCommand.h"
+#include "pr2_power_board/PowerBoardCommand2.h"
 #include "boost/thread/mutex.hpp"
 
 class Interface 
@@ -56,6 +57,8 @@ class PowerBoard
     PowerBoard( const ros::NodeHandle node_handle, const std::string &address_str );
     bool commandCallback( pr2_power_board::PowerBoardCommand::Request &req_,
                           pr2_power_board::PowerBoardCommand::Response &res_);
+    bool commandCallback2( pr2_power_board::PowerBoardCommand2::Request &req_,
+                          pr2_power_board::PowerBoardCommand2::Response &res_);
 
     void init();
     void collectMessages();
@@ -66,7 +69,7 @@ class PowerBoard
     const char* master_state_to_str(char state);
     const char* cb_state_to_str(char state);
     int list_devices(void);
-    int send_command(unsigned int serial_number, int circuit_breaker, const std::string &command, unsigned flags);
+    int send_command(int circuit_breaker, const std::string &command, unsigned flags);
     int requestMessage();
 
   private:
