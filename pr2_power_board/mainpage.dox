@@ -3,7 +3,8 @@
 
 \htmlinclude manifest.html
 
-\b pr2_power_board provides a ROS interface to the power board used on the PR2 Robot.
+\b pr2_power_board provides a ROS interface to the power board used on the PR2 Robot. It sends out periodic requests
+for status updates to the specified IP address only. The update rate can be controlled with a parameter.
 
 \section rosapi ROS API
 
@@ -16,28 +17,33 @@ List of nodes:
 
 \subsection Usage
 \verbatim
-$ power_node [-serial number]
+$ power_node [-address=dotted.IP.address]
 \endverbatim
-- \b serial : only listen to the specified serial number
+- \b address : poll this specific IP address.
 
  Execute this to communicate with the power board.  It will listen on all interfaces and send command messages
 out on the appropriate interface.
 
 \par Example
 \verbatim
-$ power_node -serial 1000
+$ power_node --address=192.168.10.100
 \endverbatim
 
-Listens to power board with serial number 1000.
+Poll the power board at the given IP address. The power board acquires it's address via DHCP.
 
 \section topic ROS topics
 
 Publishes to (name / type):
-- \b "/diagnostic" / robot_msgs::DiagnosticMessage : The standard diagnostic status message format for self reporting.  To view this use the package runtime_monitor's wxmonitor
+- \b "/diagnostic" / diagnostic_msgs::DiagnosticArray : The standard diagnostic status message format for self reporting.  To view this use the package runtime_monitor's wxmonitor
+- \b "/power_board_state" / pr2_msgs::PowerBoardState : A simple message reporting the status of the power board in a message format that is easy to use.
 
 \subsection services ROS services
 
-- \b "power_board_control": passes ROS messages on to the power board hardware.
+- \b "power_board_control": passes ROS messages on to the power board hardware. (Old format requires serial number)
+- \b "power_board_control2": passes ROS messages on to the power board hardware. (New format, no serial number required)
+
+\subsection param ROS Parameters
+- \b "power_node/sample_frequency": Frequency to poll the hardware, default is 10Hz.
 
 \section commandline Command-line tools
 
