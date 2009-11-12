@@ -16,6 +16,7 @@
 #include "diagnostic_msgs/DiagnosticStatus.h"
 #include "diagnostic_updater/DiagnosticStatusWrapper.h"
 #include "rosconsole/macros_generated.h"
+#include "pr2_msgs/BatteryServer.h" //This is here to send a copy of the previous message
 
 using namespace std;
 using namespace ros;
@@ -101,7 +102,8 @@ class server
       //  concern that one message it quickly replaced by another threads message.
       //
       ros::Publisher pub    = handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 10);
-      ros::Publisher bs     = handle.advertise<pr2_msgs::BatteryServer2>("/battery/server", 10);
+      ros::Publisher bs2    = handle.advertise<pr2_msgs::BatteryServer2>("/battery/server", 10);
+      ros::Publisher bs     = handle.advertise<pr2_msgs::BatteryServer>("/battery/server", 10);
 
       ros::Rate rate(100);   //set the rate we scan the device for input
       diagnostic_msgs::DiagnosticArray msg_out;
@@ -110,6 +112,9 @@ class server
       Duration MESSAGE_TIME(2,0);    //the message output rate
       ocean os( majorID, debug_level);
       os.initialize(serial_device.c_str());
+
+      pr2_msgs::BatteryServer oldserver;
+      oldserver.battery.resize(4);
 
       lastTime = Time::now();
 
@@ -123,7 +128,23 @@ class server
         {
 
           // First publish our internal data
-          bs.publish(os.server);
+          bs2.publish(os.server);
+
+          oldserver.id = os.server.id;
+          oldserver.lastTimeSystem = os.server.lastTimeSystem.sec;
+          oldserver.timeLeft = os.server.timeLeft.toSec()/60;
+          oldserver.averageCharge = os.server.averageCharge;
+          oldserver.message = os.server.message;
+          oldserver.lastTimeController = os.server.lastTimeController.sec;
+          oldserver.present = os.server.present[0] * 1 + os.server.present[1] * 2 + os.server.present[2] * 4 + os.server.present[3] * 8;
+          oldserver.charging = os.server.charging[0] * 1 + os.server.charging[1] * 2 + os.server.charging[2] * 4 + os.server.charging[3] * 8;
+          oldserver.discharging = os.server.discharging[0] * 1 + os.server.discharging[1] * 2 + os.server.discharging[2] * 4 + os.server.discharging[3] * 8;
+          oldserver.reserved = os.server.reserved[0] * 1 + os.server.reserved[1] * 2 + os.server.reserved[2] * 4 + os.server.reserved[3] * 8;
+          oldserver.powerPresent = os.server.powerPresent[0] * 1 + os.server.powerPresent[1] * 2 + os.server.powerPresent[2] * 4 + os.server.powerPresent[3] * 8;
+          oldserver.powerNG = os.server.powerNG[0] * 1 + os.server.powerNG[1] * 2 + os.server.powerNG[2] * 4 + os.server.powerNG[3] * 8;
+          oldserver.inhibited = os.server.inhibited[0] * 1 + os.server.inhibited[1] * 2 + os.server.inhibited[2] * 4 + os.server.inhibited[3] * 8;
+
+          bs.publish(oldserver);
 
           lastTime = currentTime;
 

@@ -615,7 +615,7 @@ unsigned int ocean::processSystem (int count, char *field[])
     switch(tmp)
     {
       case 1:
-        server.timeLeft.fromSec((double)strtol( field[index], 0, 16 ));
+        server.timeLeft.fromSec((double)strtol( field[index], 0, 16 ) * 60);
         report (5, "timeLeft=%d\n", server.timeLeft.sec);
         break;
       case 3:
