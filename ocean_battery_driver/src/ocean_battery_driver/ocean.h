@@ -8,7 +8,7 @@
 #include <time.h>
 #include <list>
 #include <utility>
-#include "pr2_msgs/BatteryServer.h"
+#include "pr2_msgs/BatteryServer2.h"
 
 namespace willowgarage
 {
@@ -97,7 +97,7 @@ namespace willowgarage
       static const struct regPair regList[];
       static const unsigned regListLength;
 
-      pr2_msgs::BatteryServer server;
+      pr2_msgs::BatteryServer2 server;
     };
   }
 }

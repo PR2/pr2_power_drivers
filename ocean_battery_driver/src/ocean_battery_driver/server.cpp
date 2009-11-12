@@ -16,7 +16,6 @@
 #include "diagnostic_msgs/DiagnosticStatus.h"
 #include "diagnostic_updater/DiagnosticStatusWrapper.h"
 #include "rosconsole/macros_generated.h"
-#include "pr2_msgs/BatteryState.h"
 
 using namespace std;
 using namespace ros;
@@ -102,7 +101,7 @@ class server
       //  concern that one message it quickly replaced by another threads message.
       //
       ros::Publisher pub    = handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 10);
-      ros::Publisher bs     = handle.advertise<pr2_msgs::BatteryServer>("/battery/server", 10);
+      ros::Publisher bs     = handle.advertise<pr2_msgs::BatteryServer2>("/battery/server", 10);
 
       ros::Rate rate(100);   //set the rate we scan the device for input
       diagnostic_msgs::DiagnosticArray msg_out;
@@ -136,16 +135,16 @@ class server
           stat.level = 0;
           stat.message = "OK";
           
-          stat.add("Time Remaining (min)", os.server.timeLeft);
+          stat.add("Time Remaining (min)", (os.server.timeLeft.toSec()/60));
           stat.add("Average charge (percent)", os.server.averageCharge );
-          stat.add("Time since update (s)", (currentTime.sec - os.server.lastTimeSystem));
+          Duration elapsed = currentTime - os.server.lastTimeSystem;
+          stat.add("Time since update (s)", elapsed.toSec());
 
           msg_out.status.push_back(stat);
 
-          for(unsigned int xx = 0; xx < os.server.MAX_BAT_COUNT; ++xx)
+          for(int xx = 0; xx < os.server.MAX_BAT_COUNT; ++xx)
           {
-            unsigned batmask = (1<<xx);
-            if(os.server.present & batmask)
+            if(os.server.present[xx])
             {
               stat.values.clear();
 
@@ -155,16 +154,16 @@ class server
               stat.level = 0;
               stat.message = "OK";
             
-              stat.add("charging", (os.server.charging & batmask) ? "True":"False");
-              stat.add("discharging", (os.server.discharging & batmask) ? "True":"False");
-              stat.add("power present", (os.server.powerPresent & batmask) ? "True":"False");
-              stat.add("No Good", (os.server.powerNG & batmask) ? "True":"False");
-              stat.add("charge inhibited", (os.server.inhibited & batmask) ? "True":"False");
+              stat.add("charging", (os.server.charging[xx]) ? "True":"False");
+              stat.add("discharging", (os.server.discharging[xx]) ? "True":"False");
+              stat.add("power present", (os.server.powerPresent[xx]) ? "True":"False");
+              stat.add("No Good", (os.server.powerNG[xx]) ? "True":"False");
+              stat.add("charge inhibited", (os.server.inhibited[xx]) ? "True":"False");
 
               for(unsigned int yy = 0; yy < os.regListLength; ++yy)
               {
                 unsigned addr = os.regList[yy].address;
-                if(os.server.battery[xx].batRegFlag[addr] != 0)
+                if(os.server.battery[xx].batRegFlag[addr])
                 {
                   ss.str("");
                   if(os.regList[yy].unit != "")
@@ -175,7 +174,8 @@ class server
                 }
               }
 
-              stat.add("Time since update (s)", (currentTime.sec - os.server.battery[xx].lastTimeBattery));
+              elapsed = currentTime - os.server.battery[xx].lastTimeBattery;
+              stat.add("Time since update (s)", elapsed.toSec());
 
               msg_out.status.push_back(stat);
 
