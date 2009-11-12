@@ -102,7 +102,7 @@ class server
       //  concern that one message it quickly replaced by another threads message.
       //
       ros::Publisher pub    = handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 10);
-      ros::Publisher bs2    = handle.advertise<pr2_msgs::BatteryServer2>("/battery/server", 10);
+      ros::Publisher bs2    = handle.advertise<pr2_msgs::BatteryServer2>("/battery/server2", 10);
       ros::Publisher bs     = handle.advertise<pr2_msgs::BatteryServer>("/battery/server", 10);
 
       ros::Rate rate(100);   //set the rate we scan the device for input
@@ -143,6 +143,17 @@ class server
           oldserver.powerPresent = os.server.powerPresent[0] * 1 + os.server.powerPresent[1] * 2 + os.server.powerPresent[2] * 4 + os.server.powerPresent[3] * 8;
           oldserver.powerNG = os.server.powerNG[0] * 1 + os.server.powerNG[1] * 2 + os.server.powerNG[2] * 4 + os.server.powerNG[3] * 8;
           oldserver.inhibited = os.server.inhibited[0] * 1 + os.server.inhibited[1] * 2 + os.server.inhibited[2] * 4 + os.server.inhibited[3] * 8;
+
+          for(int xx = 0; xx < os.server.MAX_BAT_COUNT; ++xx)
+          {
+            oldserver.battery[xx].lastTimeBattery = os.server.battery[xx].lastTimeBattery.sec;
+            for(unsigned int yy = 0; yy < os.regListLength; ++yy)
+            {
+              oldserver.battery[xx].batReg[yy] = os.server.battery[xx].batReg[yy];
+              oldserver.battery[xx].batRegFlag[yy] = os.server.battery[xx].batRegFlag[yy];
+              oldserver.battery[xx].batRegTime[yy] = os.server.battery[xx].batRegTime[yy].sec;
+            }
+          }
 
           bs.publish(oldserver);
 
