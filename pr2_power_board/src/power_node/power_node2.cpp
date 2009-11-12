@@ -538,7 +538,7 @@ void PowerBoard::init()
   devicePtr = new Device();
 
   service = node_handle.advertiseService("power_board_control", &PowerBoard::commandCallback, this);
-  service = node_handle.advertiseService("power_board_control2", &PowerBoard::commandCallback2, this);
+  service2 = node_handle.advertiseService("power_board_control2", &PowerBoard::commandCallback2, this);
 
   diags_pub = node_handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
   state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("/power_board_state", 2);

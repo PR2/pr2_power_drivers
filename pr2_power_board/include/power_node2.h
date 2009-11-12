@@ -75,6 +75,7 @@ class PowerBoard
   private:
     ros::NodeHandle node_handle;
     ros::ServiceServer service;
+    ros::ServiceServer service2;
     ros::Publisher diags_pub;
     ros::Publisher state_pub;
 
