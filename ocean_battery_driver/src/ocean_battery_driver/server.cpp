@@ -131,27 +131,27 @@ class server
           bs2.publish(os.server);
 
           oldserver.id = os.server.id;
-          oldserver.lastTimeSystem = os.server.lastTimeSystem.sec;
-          oldserver.timeLeft = os.server.timeLeft.toSec()/60;
-          oldserver.averageCharge = os.server.averageCharge;
+          oldserver.lastTimeSystem = os.server.last_system_update.sec;
+          oldserver.timeLeft = os.server.time_left.toSec()/60;
+          oldserver.averageCharge = os.server.average_charge;
           oldserver.message = os.server.message;
-          oldserver.lastTimeController = os.server.lastTimeController.sec;
+          oldserver.lastTimeController = os.server.last_controller_update.sec;
           oldserver.present = os.server.present[0] * 1 + os.server.present[1] * 2 + os.server.present[2] * 4 + os.server.present[3] * 8;
           oldserver.charging = os.server.charging[0] * 1 + os.server.charging[1] * 2 + os.server.charging[2] * 4 + os.server.charging[3] * 8;
           oldserver.discharging = os.server.discharging[0] * 1 + os.server.discharging[1] * 2 + os.server.discharging[2] * 4 + os.server.discharging[3] * 8;
           oldserver.reserved = os.server.reserved[0] * 1 + os.server.reserved[1] * 2 + os.server.reserved[2] * 4 + os.server.reserved[3] * 8;
-          oldserver.powerPresent = os.server.powerPresent[0] * 1 + os.server.powerPresent[1] * 2 + os.server.powerPresent[2] * 4 + os.server.powerPresent[3] * 8;
-          oldserver.powerNG = os.server.powerNG[0] * 1 + os.server.powerNG[1] * 2 + os.server.powerNG[2] * 4 + os.server.powerNG[3] * 8;
+          oldserver.powerPresent = os.server.power_present[0] * 1 + os.server.power_present[1] * 2 + os.server.power_present[2] * 4 + os.server.power_present[3] * 8;
+          oldserver.powerNG = os.server.power_no_good[0] * 1 + os.server.power_no_good[1] * 2 + os.server.power_no_good[2] * 4 + os.server.power_no_good[3] * 8;
           oldserver.inhibited = os.server.inhibited[0] * 1 + os.server.inhibited[1] * 2 + os.server.inhibited[2] * 4 + os.server.inhibited[3] * 8;
 
           for(int xx = 0; xx < os.server.MAX_BAT_COUNT; ++xx)
           {
-            oldserver.battery[xx].lastTimeBattery = os.server.battery[xx].lastTimeBattery.sec;
+            oldserver.battery[xx].lastTimeBattery = os.server.battery[xx].last_battery_update.sec;
             for(unsigned int yy = 0; yy < os.regListLength; ++yy)
             {
-              oldserver.battery[xx].batReg[yy] = os.server.battery[xx].batReg[yy];
-              oldserver.battery[xx].batRegFlag[yy] = os.server.battery[xx].batRegFlag[yy];
-              oldserver.battery[xx].batRegTime[yy] = os.server.battery[xx].batRegTime[yy].sec;
+              oldserver.battery[xx].batReg[yy] = os.server.battery[xx].battery_register[yy];
+              oldserver.battery[xx].batRegFlag[yy] = os.server.battery[xx].battery_update_flag[yy];
+              oldserver.battery[xx].batRegTime[yy] = os.server.battery[xx].battery_register_update[yy].sec;
             }
           }
 
@@ -167,9 +167,9 @@ class server
           stat.level = 0;
           stat.message = "OK";
           
-          stat.add("Time Remaining (min)", (os.server.timeLeft.toSec()/60));
-          stat.add("Average charge (percent)", os.server.averageCharge );
-          Duration elapsed = currentTime - os.server.lastTimeSystem;
+          stat.add("Time Remaining (min)", (os.server.time_left.toSec()/60));
+          stat.add("Average charge (percent)", os.server.average_charge );
+          Duration elapsed = currentTime - os.server.last_system_update;
           stat.add("Time since update (s)", elapsed.toSec());
 
           msg_out.status.push_back(stat);
@@ -188,25 +188,25 @@ class server
             
               stat.add("charging", (os.server.charging[xx]) ? "True":"False");
               stat.add("discharging", (os.server.discharging[xx]) ? "True":"False");
-              stat.add("power present", (os.server.powerPresent[xx]) ? "True":"False");
-              stat.add("No Good", (os.server.powerNG[xx]) ? "True":"False");
+              stat.add("power present", (os.server.power_present[xx]) ? "True":"False");
+              stat.add("No Good", (os.server.power_no_good[xx]) ? "True":"False");
               stat.add("charge inhibited", (os.server.inhibited[xx]) ? "True":"False");
 
               for(unsigned int yy = 0; yy < os.regListLength; ++yy)
               {
                 unsigned addr = os.regList[yy].address;
-                if(os.server.battery[xx].batRegFlag[addr])
+                if(os.server.battery[xx].battery_update_flag[addr])
                 {
                   ss.str("");
                   if(os.regList[yy].unit != "")
                     ss << os.regList[yy].name << " (" << os.regList[yy].unit << ")";
                   else
                     ss << os.regList[yy].name;
-                  stat.add( ss.str(), os.server.battery[xx].batReg[addr]);
+                  stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
                 }
               }
 
-              elapsed = currentTime - os.server.battery[xx].lastTimeBattery;
+              elapsed = currentTime - os.server.battery[xx].last_battery_update;
               stat.add("Time since update (s)", elapsed.toSec());
 
               msg_out.status.push_back(stat);

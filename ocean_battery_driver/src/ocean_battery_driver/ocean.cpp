@@ -605,7 +605,7 @@ unsigned int ocean::processSystem (int count, char *field[])
    *  6  ASCII text message
    *
    */
-  server.lastTimeSystem = ros::Time::now();
+  server.last_system_update = ros::Time::now();
 
   for( int index = 1; index < count; )
   {
@@ -615,8 +615,8 @@ unsigned int ocean::processSystem (int count, char *field[])
     switch(tmp)
     {
       case 1:
-        server.timeLeft.fromSec((double)strtol( field[index], 0, 16 ) * 60);
-        report (5, "timeLeft=%d\n", server.timeLeft.sec);
+        server.time_left.fromSec((double)strtol( field[index], 0, 16 ) * 60);
+        report (5, "timeLeft=%d\n", server.time_left.sec);
         break;
       case 3:
         server.message.assign(field[index]);
@@ -624,8 +624,8 @@ unsigned int ocean::processSystem (int count, char *field[])
         report (5, "processSystem message=%s\n", server.message.c_str());
         break;
       case 4:
-        server.averageCharge = (int32_t)strtol( field[index], 0, 16 );
-        report (5, "averageCharge=%x\n", server.averageCharge);
+        server.average_charge = (int32_t)strtol( field[index], 0, 16 );
+        report (5, "averageCharge=%x\n", server.average_charge);
         break;
       default:
         ;
@@ -658,7 +658,7 @@ unsigned int ocean::processController (int count, char *field[])
    *
    */
 
-  server.lastTimeController = ros::Time::now();
+  server.last_controller_update = ros::Time::now();
 
   for( int index = 1; index < count; )
   {
@@ -717,7 +717,7 @@ unsigned int ocean::processController (int count, char *field[])
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.powerPresent[xx] = value && 1;
+            server.power_present[xx] = value && 1;
             value = value >> 1;
           }
         }
@@ -726,7 +726,7 @@ unsigned int ocean::processController (int count, char *field[])
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.powerNG[xx] = value && 1;
+            server.power_no_good[xx] = value && 1;
             value = value >> 1;
           }
         }
@@ -768,7 +768,7 @@ unsigned int ocean::processBattery (int count, char *field[])
   report (5, "processBattery count=%d \n", count);
   report (5, "currentBattery=%d \n", battery);
 
-  server.battery[battery].lastTimeBattery = ros::Time::now();
+  server.battery[battery].last_battery_update = ros::Time::now();
   --count;  //get past sentence type
 
   int32_t regNumber;
@@ -787,9 +787,9 @@ unsigned int ocean::processBattery (int count, char *field[])
     }
     else
     {
-      server.battery[battery].batReg[regNumber] = value;
-      server.battery[battery].batRegFlag[regNumber] = 1;
-      server.battery[battery].batRegTime[regNumber] = ros::Time::now();
+      server.battery[battery].battery_register[regNumber] = value;
+      server.battery[battery].battery_update_flag[regNumber] = 1;
+      server.battery[battery].battery_register_update[regNumber] = ros::Time::now();
     }
 
     count -= 2;
