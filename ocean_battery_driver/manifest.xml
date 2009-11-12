@@ -2,7 +2,7 @@
   <description>This is an interface to the Ocean Server Technology Intelligent Battery and Power System.</description>
   <author>Tully Foote, Curt Meyers</author>
   <license>BSD</license>
-  <review status="API cleared" notes=""/>
+  <review status="API unreviewed" notes=""/>
   <depend package="roscpp" />
   <depend package="rospy" />
   <depend package="pr2_msgs" />
