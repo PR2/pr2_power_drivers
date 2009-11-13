@@ -136,13 +136,13 @@ class server
           oldserver.averageCharge = os.server.average_charge;
           oldserver.message = os.server.message;
           oldserver.lastTimeController = os.server.last_controller_update.sec;
-          oldserver.present = os.server.present[0] * 1 + os.server.present[1] * 2 + os.server.present[2] * 4 + os.server.present[3] * 8;
-          oldserver.charging = os.server.charging[0] * 1 + os.server.charging[1] * 2 + os.server.charging[2] * 4 + os.server.charging[3] * 8;
-          oldserver.discharging = os.server.discharging[0] * 1 + os.server.discharging[1] * 2 + os.server.discharging[2] * 4 + os.server.discharging[3] * 8;
-          oldserver.reserved = os.server.reserved[0] * 1 + os.server.reserved[1] * 2 + os.server.reserved[2] * 4 + os.server.reserved[3] * 8;
-          oldserver.powerPresent = os.server.power_present[0] * 1 + os.server.power_present[1] * 2 + os.server.power_present[2] * 4 + os.server.power_present[3] * 8;
-          oldserver.powerNG = os.server.power_no_good[0] * 1 + os.server.power_no_good[1] * 2 + os.server.power_no_good[2] * 4 + os.server.power_no_good[3] * 8;
-          oldserver.inhibited = os.server.inhibited[0] * 1 + os.server.inhibited[1] * 2 + os.server.inhibited[2] * 4 + os.server.inhibited[3] * 8;
+          oldserver.present = os.server.battery[0].present * 1 + os.server.battery[1].present * 2 + os.server.battery[2].present * 4 + os.server.battery[3].present * 8;
+          oldserver.charging = os.server.battery[0].charging * 1 + os.server.battery[1].charging * 2 + os.server.battery[2].charging * 4 + os.server.battery[3].charging * 8;
+          oldserver.discharging = os.server.battery[0].discharging * 1 + os.server.battery[1].discharging * 2 + os.server.battery[2].discharging * 4 + os.server.battery[3].discharging * 8;
+          //oldserver.reserved = os.server.battery[0].reserved * 1 + os.server.battery[1].reserved * 2 + os.server.battery[2].reserved * 4 + os.server.battery[3].reserved * 8;
+          oldserver.powerPresent = os.server.battery[0].power_present * 1 + os.server.battery[1].power_present * 2 + os.server.battery[2].power_present * 4 + os.server.battery[3].power_present * 8;
+          oldserver.powerNG = os.server.battery[0].power_no_good * 1 + os.server.battery[1].power_no_good * 2 + os.server.battery[2].power_no_good * 4 + os.server.battery[3].power_no_good * 8;
+          oldserver.inhibited = os.server.battery[0].inhibited * 1 + os.server.battery[1].inhibited * 2 + os.server.battery[2].inhibited * 4 + os.server.battery[3].inhibited * 8;
 
           for(int xx = 0; xx < os.server.MAX_BAT_COUNT; ++xx)
           {
@@ -176,7 +176,7 @@ class server
 
           for(int xx = 0; xx < os.server.MAX_BAT_COUNT; ++xx)
           {
-            if(os.server.present[xx])
+            if(os.server.battery[xx].present)
             {
               stat.values.clear();
 
@@ -186,11 +186,11 @@ class server
               stat.level = 0;
               stat.message = "OK";
             
-              stat.add("charging", (os.server.charging[xx]) ? "True":"False");
-              stat.add("discharging", (os.server.discharging[xx]) ? "True":"False");
-              stat.add("power present", (os.server.power_present[xx]) ? "True":"False");
-              stat.add("No Good", (os.server.power_no_good[xx]) ? "True":"False");
-              stat.add("charge inhibited", (os.server.inhibited[xx]) ? "True":"False");
+              stat.add("charging", (os.server.battery[xx].charging) ? "True":"False");
+              stat.add("discharging", (os.server.battery[xx].discharging) ? "True":"False");
+              stat.add("power present", (os.server.battery[xx].power_present) ? "True":"False");
+              stat.add("No Good", (os.server.battery[xx].power_no_good) ? "True":"False");
+              stat.add("charge inhibited", (os.server.battery[xx].inhibited) ? "True":"False");
 
               for(unsigned int yy = 0; yy < os.regListLength; ++yy)
               {

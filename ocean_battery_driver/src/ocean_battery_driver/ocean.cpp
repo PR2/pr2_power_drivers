@@ -681,7 +681,7 @@ unsigned int ocean::processController (int count, char *field[])
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.present[xx] = value && 1;
+            server.battery[xx].present = value && 1;
             value = value >> 1;
           }
         }
@@ -690,7 +690,7 @@ unsigned int ocean::processController (int count, char *field[])
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.charging[xx] = value && 1;
+            server.battery[xx].charging = value && 1;
             value = value >> 1;
           }
         }
@@ -699,25 +699,27 @@ unsigned int ocean::processController (int count, char *field[])
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.discharging[xx] = value && 1;
+            server.battery[xx].discharging = value && 1;
             value = value >> 1;
           }
         }
         break;
         case 4:
+#if 0 //we don't care about reserved. --Curt
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.reserved[xx] = value && 1;
+            server.battery[xx].reserved = value && 1;
             value = value >> 1;
           }
         }
+#endif
         break;
         case 5:
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.power_present[xx] = value && 1;
+            server.battery[xx].power_present = value && 1;
             value = value >> 1;
           }
         }
@@ -726,7 +728,7 @@ unsigned int ocean::processController (int count, char *field[])
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.power_no_good[xx] = value && 1;
+            server.battery[xx].power_no_good = value && 1;
             value = value >> 1;
           }
         }
@@ -735,7 +737,7 @@ unsigned int ocean::processController (int count, char *field[])
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.inhibited[xx] = value && 1;
+            server.battery[xx].inhibited = value && 1;
             value = value >> 1;
           }
         }
