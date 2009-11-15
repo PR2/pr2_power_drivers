@@ -750,7 +750,7 @@ void PowerBoard::sendMessages()
       }
 
       msg_out.status.push_back(stat);
-
+      msg_out.header.stamp = ros::Time::now();
       //ROS_DEBUG("Publishing ");
       diags_pub.publish(msg_out);
 
@@ -766,6 +766,7 @@ void PowerBoard::sendMessages()
       state_msg.circuit_state[2] = status->CB2_state;
       state_msg.run_stop = status->estop_status;
       state_msg.wireless_stop = status->estop_button_status;
+      state_msg.header.stamp = ros::Time::now();
       state_pub.publish(state_msg);
     }
   }
