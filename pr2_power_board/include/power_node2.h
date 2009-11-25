@@ -70,7 +70,7 @@ class PowerBoard
     const char* cb_state_to_str(char state);
     int list_devices(void);
     int send_command(int circuit_breaker, const std::string &command, unsigned flags);
-    int requestMessage();
+    int requestMessage(const unsigned int message);
 
   private:
     ros::NodeHandle node_handle;

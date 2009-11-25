@@ -548,7 +548,8 @@ bool PowerBoard::commandCallback(pr2_power_board::PowerBoardCommand::Request &re
                      pr2_power_board::PowerBoardCommand::Response &res_)
 {
   res_.retval = send_command( req_.breaker_number, req_.command, req_.flags);
-  requestMessage();
+  requestMessage(MESSAGE_ID_POWER);
+  requestMessage(MESSAGE_ID_TRANSITION);
 
   return true;
 }
@@ -564,7 +565,8 @@ bool PowerBoard::commandCallback2(pr2_power_board::PowerBoardCommand2::Request &
     flags |= 0x2;
 
   res_.success = send_command( req_.circuit, req_.command, flags);
-  requestMessage();
+  requestMessage(MESSAGE_ID_POWER);
+  requestMessage(MESSAGE_ID_TRANSITION);
 
   return true;
 }
@@ -772,7 +774,7 @@ void PowerBoard::sendMessages()
   }
 }
 
-int PowerBoard::requestMessage()
+int PowerBoard::requestMessage(const unsigned int message)
 {
 
   GetMessage cmdmsg;
@@ -782,7 +784,7 @@ int PowerBoard::requestMessage()
   cmdmsg.header.serial_num = devicePtr->getPowerMessage().header.serial_num;
   strncpy(cmdmsg.header.text, "power status message", sizeof(cmdmsg.header.text));
 
-  cmdmsg.message_to_get = MESSAGE_ID_POWER;
+  cmdmsg.message_to_get = message;
 
   errno = 0;
   int result = send(SendInterface->send_sock, &cmdmsg, sizeof(cmdmsg), 0);
@@ -885,28 +887,40 @@ int main(int argc, char** argv)
   boost::thread sendThread( &sendMessages );
 
   double sample_frequency = 10; //In Hertz
+  double transition_frequency = 0.1; //In Hertz
   handle.getParam( "/power_node/sample_frequency", sample_frequency );
   ROS_INFO("Using sampling frequency %fHz", sample_frequency);
+  handle.getParam( "/power_node/transition_frequency", transition_frequency );
+  ROS_INFO("Using transition frequency %fHz", transition_frequency);
 
-  ros::Time last_time = ros::Time::now();
+  ros::Time last_msg = ros::Time::now();
+  ros::Time last_transition = ros::Time::now();
 
-  double ros_rate = 10;
+  double ros_rate = 10; //(Hz) need to run the "spin" loop at some number of Hertz to handle ros things.
 
   if(sample_frequency > ros_rate)
     ros_rate = sample_frequency;
 
   ros::Rate r(ros_rate);
   const ros::Duration MSG_RATE(1/sample_frequency);
+  const ros::Duration TRANSITION_RATE(1/transition_frequency);
 
   while(handle.ok())
   {
     r.sleep();
-    if( (ros::Time::now() - last_time) > MSG_RATE )
+    if( (ros::Time::now() - last_msg) > MSG_RATE )
     {
-      myBoard->requestMessage();
+      myBoard->requestMessage(MESSAGE_ID_POWER);
       //ROS_INFO("Send ");
-      last_time = ros::Time::now();
+      last_msg = ros::Time::now();
     }
+
+    if( (ros::Time::now() - last_transition) > TRANSITION_RATE )
+    {
+      myBoard->requestMessage(MESSAGE_ID_TRANSITION);
+      last_transition = ros::Time::now();
+    }
+
     ros::spinOnce();
   }
 
