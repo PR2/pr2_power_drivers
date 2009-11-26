@@ -38,14 +38,18 @@ class PowerBoard(threading.Thread):
   def power_board_control(self, msg):
     if msg.command == "disable":
       self.pb.circuit_state[msg.breaker_number] = 0
-      self.pb.circuit_voltage[msg.breaker_number] = 19
+      self.pb.circuit_voltage[msg.breaker_number] = 1
     if msg.command == "stop":
-      self.pb.circuit_state[msg.breaker_number] = 1
+      if self.pb.circuit_state[msg.breaker_number] != 0:
+        self.pb.circuit_state[msg.breaker_number] = 1
+        self.pb.circuit_voltage[msg.breaker_number] = 19
     if msg.command == "reset":
-      self.pb.circuit_state[msg.breaker_number] = 2
+      if self.pb.circuit_state[msg.breaker_number] == 0:
+        self.pb.circuit_state[msg.breaker_number] = 1
     if msg.command == "start":
-      self.pb.circuit_state[msg.breaker_number] = 3
-      self.pb.circuit_voltage[msg.breaker_number] = 70
+      if self.pb.circuit_state[msg.breaker_number] != 0:
+        self.pb.circuit_state[msg.breaker_number] = 3
+        self.pb.circuit_voltage[msg.breaker_number] = 70
   
   def run(self):
     while 1:
