@@ -128,6 +128,12 @@ class server
         {
 
           // First publish our internal data
+
+          // FIX ME:
+          // Setting time to currentTime before publishing.  This may
+          // not be correct, but at least gets rid of deprecationg
+          // warning.
+          os.server.header.stamp = currentTime;
           bs2.publish(os.server);
 
           oldserver.id = os.server.id;
@@ -155,6 +161,11 @@ class server
             }
           }
 
+          // FIX ME:
+          // Setting time to currentTime before publishing.  This may
+          // not be correct, but at least gets rid of deprecationg
+          // warning.
+          oldserver.header.stamp = currentTime;
           bs.publish(oldserver);
 
           lastTime = currentTime;
@@ -172,6 +183,11 @@ class server
           Duration elapsed = currentTime - os.server.last_system_update;
           stat.add("Time since update (s)", elapsed.toSec());
 
+          // FIX ME:
+          // Setting time to currentTime before publishing.  This may
+          // not be correct, but at least gets rid of deprecationg
+          // warning.
+          msg_out.header.stamp = currentTime;
           msg_out.status.push_back(stat);
 
           for(int xx = 0; xx < os.server.MAX_BAT_COUNT; ++xx)

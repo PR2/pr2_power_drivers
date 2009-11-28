@@ -93,6 +93,10 @@ class PowerMonitor
       powerState.prediction_method = "fuel gauge";
       powerState.relative_capacity = minCapacity;
 
+      // FIX ME: Setting time to ros::Time::now() before publishing.
+      // This may not be correct, but at least gets rid of deprecation
+      // warning.
+      powerState.header.stamp = ros::Time::now();
       pub.publish(powerState);
     };
 
