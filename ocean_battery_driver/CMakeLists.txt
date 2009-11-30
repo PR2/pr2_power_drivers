@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.4.6)
 include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
-rospack(ocean_battery_driver)
+rosbuild_init()
 
 set(EXECUTABLE_OUTPUT_PATH ${ocean_battery_driver_SOURCE_DIR}/bin)
 add_subdirectory(src)
