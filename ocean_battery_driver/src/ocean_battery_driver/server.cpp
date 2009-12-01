@@ -41,6 +41,8 @@ class server
     {
       std::stringstream ss;
 
+      ros::NodeHandle private_handle("~");
+
       if(dev.empty())
       {
         string tmp_device;
@@ -49,8 +51,8 @@ class server
         serial_device = ss.str();
 
         ss.str("");
-        ss << "/ocean_server/port" << majorID;
-        bool result = handle.getParam( ss.str(), tmp_device );
+        ss << "port" << majorID;
+        bool result = private_handle.getParam( ss.str(), tmp_device );
         if(result == true)
         {
           ROS_INFO("Using %s from getParam.\n", ss.str().c_str());
@@ -264,6 +266,7 @@ int main(int argc, char** argv)
 
   ros::init(argc, argv, "ocean_server");
   ros::NodeHandle handle;
+  ros::NodeHandle private_handle("~");
 
   //majorID = serial_device.at(serial_device.length() - 1) - '0';
 
@@ -277,9 +280,9 @@ int main(int argc, char** argv)
     my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Info]);
   }
 
-  handle.getParam( "/ocean_server/number_of_ports", max_ports );
+  private_handle.getParam( "number_of_ports", max_ports );
   ROS_INFO("number_of_ports=%d", max_ports);
-  handle.getParam( "/ocean_server/debug_level", debug_level );
+  private_handle.getParam( "debug_level", debug_level );
   ROS_DEBUG("debug_level=%d", debug_level);
 
   vector<server> server_list;
