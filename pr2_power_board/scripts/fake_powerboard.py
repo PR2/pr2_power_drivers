@@ -24,6 +24,7 @@ class PowerBoard(threading.Thread):
     self.options = options
 
     self.pb = PowerBoardState()
+    self.pb.header.stamp = rospy.rostime.get_rostime()
     self.pb.serial_num = 9999
     self.pb.input_voltage = 80
     self.pb.circuit_state = [3,3,3]
@@ -57,9 +58,8 @@ class PowerBoard(threading.Thread):
       time.sleep(1)
 
 def talker(options):
-  pb = PowerBoard(options)
-
   rospy.init_node(NAME, anonymous=True)
+  pb = PowerBoard(options)
   s = rospy.Service('power_board_control', PowerBoardCommand, pb.power_board_control)
 
   pb.start()
