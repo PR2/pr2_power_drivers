@@ -97,11 +97,11 @@ ocean::initialize (const std::string &input_dev)
   //printf ("inputDevice %d\n", inputDevice);
   if (inputDevice < 0)
   {
-    fprintf (stderr, "failed to open tty device: %s\n", strerror (errno));
+    fprintf (stderr, "failed to open tty device [%s]: %s\n", input_dev.c_str(), strerror (errno));
   }
   if (isatty (inputDevice) != 1)
   {
-    fprintf (stderr, "Device not a tty device.\n");
+    fprintf (stderr, "Device [%s] not a tty device.\n", input_dev.c_str());
   }
   report (2, "Device opened dev=%d\n", inputDevice);
 
