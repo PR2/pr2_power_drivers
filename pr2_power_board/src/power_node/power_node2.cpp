@@ -537,15 +537,25 @@ void PowerBoard::init()
 {
   devicePtr = new Device();
 
-  service = node_handle.advertiseService("power_board_control", &PowerBoard::commandCallback, this);
-  service2 = node_handle.advertiseService("power_board_control2", &PowerBoard::commandCallback2, this);
+  service = node_handle.advertiseService("control", &PowerBoard::commandCallback, this);
+  service_dep = node_handle.advertiseService("/power_board_control", &PowerBoard::commandCallbackDeprecated, this);
+  service2 = node_handle.advertiseService("control2", &PowerBoard::commandCallback2, this);
+  service2_dep = node_handle.advertiseService("/power_board_control2", &PowerBoard::commandCallback2Deprecated, this);
 
   diags_pub = node_handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
-  state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("/power_board_state", 2);
+  state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("state", 2);
+  state_pub_dep = node_handle.advertise<pr2_msgs::PowerBoardState>("/power_board_state", 2);
+}
+
+bool PowerBoard::commandCallbackDeprecated(pr2_power_board::PowerBoardCommand::Request &req_,
+					   pr2_power_board::PowerBoardCommand::Response &res_)
+{
+  ROS_ERROR("Power Board: The topic 'power_board_control' is deprecated. Use 'power_board/control' instead and rename the power node to 'power_board'.");
+  return commandCallback(req_, res_);
 }
 
 bool PowerBoard::commandCallback(pr2_power_board::PowerBoardCommand::Request &req_,
-                     pr2_power_board::PowerBoardCommand::Response &res_)
+				 pr2_power_board::PowerBoardCommand::Response &res_)
 {
   res_.retval = send_command( req_.breaker_number, req_.command, req_.flags);
   requestMessage(MESSAGE_ID_POWER);
@@ -554,8 +564,15 @@ bool PowerBoard::commandCallback(pr2_power_board::PowerBoardCommand::Request &re
   return true;
 }
 
+bool PowerBoard::commandCallback2Deprecated(pr2_power_board::PowerBoardCommand2::Request &req_,
+					    pr2_power_board::PowerBoardCommand2::Response &res_)
+{
+  ROS_ERROR("Power Board: The topic 'power_board_control2' is deprecated. Use 'power_board/control2' instead and rename the power node to 'power_board'.");
+  return commandCallback2(req_, res_);
+}
+
 bool PowerBoard::commandCallback2(pr2_power_board::PowerBoardCommand2::Request &req_,
-                     pr2_power_board::PowerBoardCommand2::Response &res_)
+				  pr2_power_board::PowerBoardCommand2::Response &res_)
 {
   
   unsigned flags = 0;
@@ -770,6 +787,7 @@ void PowerBoard::sendMessages()
       state_msg.wireless_stop = status->estop_button_status;
       state_msg.header.stamp = ros::Time::now();
       state_pub.publish(state_msg);
+      state_pub_dep.publish(state_msg);
     }
   }
 }
@@ -851,6 +869,8 @@ int CreateAllInterfaces(const std::string &address_str)
 
 int main(int argc, char** argv)
 {
+  ros::init(argc, argv, "power_board");
+
   std::string address_str;
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -875,12 +895,11 @@ int main(int argc, char** argv)
 
   ROS_INFO("PowerNode:Using Address=%s", address_str.c_str());
 
-  ros::init(argc, argv, "PowerBoard");
 
   CreateAllInterfaces(address_str);
 
-  ros::NodeHandle handle;
-  myBoard = new PowerBoard( handle, address_str );
+  ros::NodeHandle private_handle("~");
+  myBoard = new PowerBoard(private_handle, address_str );
   myBoard->init();
 
   boost::thread getThread( &getMessages );
@@ -888,9 +907,9 @@ int main(int argc, char** argv)
 
   double sample_frequency = 10; //In Hertz
   double transition_frequency = 0.1; //In Hertz
-  handle.getParam( "/power_node/sample_frequency", sample_frequency );
+  private_handle.getParam( "sample_frequency", sample_frequency );
   ROS_INFO("Using sampling frequency %fHz", sample_frequency);
-  handle.getParam( "/power_node/transition_frequency", transition_frequency );
+  private_handle.getParam( "transition_frequency", transition_frequency );
   ROS_INFO("Using transition frequency %fHz", transition_frequency);
 
   ros::Time last_msg = ros::Time::now();
@@ -905,7 +924,7 @@ int main(int argc, char** argv)
   const ros::Duration MSG_RATE(1/sample_frequency);
   const ros::Duration TRANSITION_RATE(1/transition_frequency);
 
-  while(handle.ok())
+  while(private_handle.ok())
   {
     r.sleep();
     if( (ros::Time::now() - last_msg) > MSG_RATE )

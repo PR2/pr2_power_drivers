@@ -649,10 +649,20 @@ void PowerBoard::init()
     Devices.push_back(newDevice);
   }
 
-  service = node_handle.advertiseService("power_board_control", &PowerBoard::commandCallback, this);
+  service = node_handle.advertiseService("control", &PowerBoard::commandCallback, this);
+  service_dep = node_handle.advertiseService("/power_board_control", &PowerBoard::commandCallbackDeprecated, this);
 
   diags_pub = node_handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
-  state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("/power_board_state", 2);
+  state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("state", 2);
+  state_pub_dep = node_handle.advertise<pr2_msgs::PowerBoardState>("/power_board_state", 2);
+}
+
+
+bool PowerBoard::commandCallbackDeprecated(pr2_power_board::PowerBoardCommand::Request &req_,
+					   pr2_power_board::PowerBoardCommand::Response &res_)
+{
+  ROS_ERROR("Power Board: The topic 'power_board_control' is deprecated. Use 'power_board/control' instead and rename the power node to 'power_board'.");
+  return commandCallback(req_, res_);
 }
 
 bool PowerBoard::commandCallback(pr2_power_board::PowerBoardCommand::Request &req_,
@@ -865,6 +875,7 @@ void PowerBoard::sendMessages()
       state_msg.wireless_stop = status->estop_button_status;
       state_msg.header.stamp = ros::Time::now();
       state_pub.publish(state_msg);
+      state_pub_dep.publish(state_msg);
     }
   }
 }
@@ -997,6 +1008,8 @@ int CreateAllInterfaces(void)
 
 int main(int argc, char** argv)
 {
+  ros::init(argc, argv, "power_board");
+
   unsigned int serial_option;
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -1013,11 +1026,9 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  ros::init(argc, argv, "PowerBoard");
-
   CreateAllInterfaces();
 
-  ros::NodeHandle handle;
+  ros::NodeHandle handle("~");
   myBoard = new PowerBoard( handle, serial_option);
   myBoard->init();
 
