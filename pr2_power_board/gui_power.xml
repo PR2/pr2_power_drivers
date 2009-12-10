@@ -1,5 +1,5 @@
 <launch>
-<node pkg="pr2_power_board" type="power_board" name="$(anon power_node)"/>
+<node pkg="pr2_power_board" type="power_node" name="$(anon power_node)"/>
 <node pkg="pr2_power_board" type="view_power" name="$(anon view_power)"/>
 
 </launch>
