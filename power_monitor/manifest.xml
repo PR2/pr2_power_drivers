@@ -1,7 +1,9 @@
 <package>
   <description brief="power_monitor">
 
-     power_monitor
+     The power_monitor collects messages from the ocean_battery_server and
+     the pr2_power_board, and publishes a summary of their data in a
+     friendlier message format.
 
   </description>
   <author>Curt Meyers</author>

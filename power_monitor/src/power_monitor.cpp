@@ -106,7 +106,7 @@ class PowerMonitor
       //handle = new ros::NodeHandle();
       ros::NodeHandle handle;
       double freq = 0.1;
-      handle.getParam("/power_monitor/frequency", freq, 0.1);
+      handle.getParam("/power_monitor/frequency", freq);
 
 
       pub = handle.advertise<pr2_msgs::PowerState>("power_state", 5);
