@@ -95,7 +95,7 @@ class PowerBoardPanel(wx.Panel):
         self._real_panel.Bind(wx.EVT_BUTTON, self.ResetTransitions, id=xrc.XRCID('button_reset_transitions'))
         rospy.Subscriber("/diagnostics", DiagnosticArray, self.diagnostics_callback)
         
-        self.power_control = rospy.ServiceProxy('power_board_control', PowerBoardCommand)
+        self.power_control = rospy.ServiceProxy('power_board/control', PowerBoardCommand)
 
 
         self.voltages = [0,0,0]

@@ -34,7 +34,7 @@ class PowerBoard(threading.Thread):
     if self.options.wireless_stop: self.pb.wireless_stop = 1
     else: self.pb.wireless_stop = 0
 
-    self.pub = rospy.Publisher("/power_board_state", PowerBoardState)
+    self.pub = rospy.Publisher("power_board/state", PowerBoardState)
 
   def power_board_control(self, msg):
     if msg.command == "disable":
@@ -60,7 +60,7 @@ class PowerBoard(threading.Thread):
 def talker(options):
   rospy.init_node(NAME, anonymous=True)
   pb = PowerBoard(options)
-  s = rospy.Service('power_board_control', PowerBoardCommand, pb.power_board_control)
+  s = rospy.Service('power_board/control', PowerBoardCommand, pb.power_board_control)
 
   pb.start()
   rospy.spin()
