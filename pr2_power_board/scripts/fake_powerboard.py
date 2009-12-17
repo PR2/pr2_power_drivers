@@ -26,9 +26,9 @@ class PowerBoard(threading.Thread):
     self.pb = PowerBoardState()
     self.pb.header.stamp = rospy.rostime.get_rostime()
     self.pb.serial_num = 9999
-    self.pb.input_voltage = 80
+    self.pb.input_voltage = 80.123456
     self.pb.circuit_state = [3,3,3]
-    self.pb.circuit_voltage = [70,70,70]
+    self.pb.circuit_voltage = [70.123456,70.234567,70.345678]
     if self.options.run_stop: self.pb.run_stop = 1
     else: self.pb.run_stop = 0
     if self.options.wireless_stop: self.pb.wireless_stop = 1
