@@ -57,9 +57,6 @@ class PowerBoard
     PowerBoard( const ros::NodeHandle node_handle, unsigned int serial_number = 0 );
     bool commandCallback( pr2_power_board::PowerBoardCommand::Request &req_,
                           pr2_power_board::PowerBoardCommand::Response &res_);
-    bool commandCallbackDeprecated( pr2_power_board::PowerBoardCommand::Request &req_,
-				    pr2_power_board::PowerBoardCommand::Response &res_);
-
     void init();
     void collectMessages();
     void sendMessages();
@@ -73,9 +70,9 @@ class PowerBoard
 
   private:
     ros::NodeHandle node_handle;
-    ros::ServiceServer service, service_dep;
+    ros::ServiceServer service;
     ros::Publisher diags_pub;
-    ros::Publisher state_pub, state_pub_dep;
+    ros::Publisher state_pub;
 
     pr2_power_board::PowerBoardCommand::Request req_;
     pr2_power_board::PowerBoardCommand::Response res_;
