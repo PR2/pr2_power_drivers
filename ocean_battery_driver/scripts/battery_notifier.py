@@ -43,7 +43,7 @@ import os, sys
 
 class BatteryNotifier:
   def __init__(self, notify_limit, state_topic, email_addresses, robot_name, mail_program):
-    self.notify_limit = notify_limit
+    self.notify_limit = roslib.rostime.Duration(notify_limit * 60.0)  # convert to Duration in seconds
     rospy.init_node("battery_notifier", anonymous=True)
     rospy.Subscriber(state_topic, PowerState, self.update)
     self.email_addresses = email_addresses
@@ -76,8 +76,8 @@ class BatteryNotifier:
 
 if __name__ == '__main__':
   if len(sys.argv) < 2:
-    notifier = BatteryNotifier(0.2, "battery_state", ["eitan@willowgarage.com"], "pre", "/usr/sbin/sendmail")
+    notifier = BatteryNotifier(30.0, "battery_state", ["eitan@willowgarage.com"], "pre", "/usr/sbin/sendmail")
   else:
-    notifier = BatteryNotifier(0.2, "battery_state", sys.argv, "pre", "/usr/sbin/sendmail")
+    notifier = BatteryNotifier(30.0, "battery_state", sys.argv, "pre", "/usr/sbin/sendmail")
 
   notifier.run()
