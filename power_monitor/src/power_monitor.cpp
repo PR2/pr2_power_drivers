@@ -81,17 +81,21 @@ class PowerMonitor
         //totalCurrent[bat->id] = tmpCurrent;
         //cout << " totalCurrent=" << tmpCurrent << "\n";
       }
-      ROS_DEBUG("PowerMonitor::min_voltage=%f", min_voltage);
+      //ROS_DEBUG("PowerMonitor::min_voltage=%f", min_voltage);
+      if(minCapacity == 1000)
+        minCapacity = 0;
+
+      ROS_DEBUG("PowerMonitor::minCapacity=%d", minCapacity);
       ROS_DEBUG(" totalPower=%f", totalPower);
 
       powerState.power_consumption = totalPower;
       powerState.AC_present = acCount;
       if(acCount > 0) //Are we charging??
-        powerState.time_remaining = maxTime;
+        powerState.time_remaining.fromSec(maxTime * 60);  //convert minutes to seconds
       else
-        powerState.time_remaining = minTime;
+        powerState.time_remaining.fromSec((int)minTime * 60);  //convert minutes to seconds
       powerState.prediction_method = "fuel gauge";
-      powerState.relative_capacity = minCapacity;
+      powerState.relative_capacity = (int8_t)minCapacity;
 
       // FIX ME: Setting time to ros::Time::now() before publishing.
       // This may not be correct, but at least gets rid of deprecation
@@ -108,6 +112,10 @@ class PowerMonitor
       double freq = 0.1;
       handle.getParam("/power_monitor/frequency", freq);
 
+      powerState.power_consumption = 0;
+      powerState.time_remaining.fromSec(0);
+      powerState.relative_capacity = 0;
+      powerState.AC_present = 0;
 
       pub = handle.advertise<pr2_msgs::PowerState>("power_state", 5);
       sub = handle.subscribe("battery/server", 10, &PowerMonitor::batteryUpdate, this);
