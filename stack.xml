@@ -1,4 +1,4 @@
-<stack name="pr2_power_drivers" version="0.1.0">
+<stack>
   <description brief="pr2_power_drivers">
 
      pr2_power_drivers
@@ -8,9 +8,9 @@
   <license>BSD</license>  
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/pr2_power_drivers</url>
-  <depend stack="diagnostics"/> <!-- diagnostic_updater --> 
-  <depend stack="ros"/> <!-- rospy, roscpp --> 
-  <depend stack="common_msgs"/> <!-- diagnostic_msgs --> 
-  <depend stack="pr2_common"/>
+  <depend stack="common_msgs" /> <!-- diagnostic_msgs -->
+  <depend stack="diagnostics" /> <!-- diagnostic_updater -->
+  <depend stack="pr2_common" /> <!-- pr2_msgs -->
+  <depend stack="ros" /> <!-- rospy, std_msgs, roscpp -->
 
 </stack>
