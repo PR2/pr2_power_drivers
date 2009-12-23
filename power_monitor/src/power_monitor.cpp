@@ -34,33 +34,71 @@
 
 #include "power_monitor.h"
 
-#include <stdlib.h>
-#include <boost/thread/mutex.hpp>
-
-#include "ros/ros.h"
-#include "pr2_msgs/PowerState.h"
-#include "pr2_msgs/BatteryServer.h"
-
 using namespace std;
 
 ros::PowerMonitor::PowerMonitor()
 {
     ros::NodeHandle node;
 
+    dynamic_reconfigure::Server<power_monitor::PowerMonitorConfig>::CallbackType config_callback = boost::bind(&ros::PowerMonitor::configCallback, this, _1, _2);
+    config_server_.setCallback(config_callback);
+
+    // Get the update frequency parameter
     double freq = 0.1;
     node.getParam("/power_monitor/frequency", freq);
 
+    // Get the estimation method
+    std::string estimator_type_str = "fuel gauge";
+    node.getParam("/power_monitor/estimation_method", estimator_type_str);
+
+    PowerStateEstimatorType e;
+    if (!getPowerStateEstimatorType(estimator_type_str, e))
+    {
+        ROS_ERROR("Unknown power state estimator type: %s. Defaulting to fuel gauge", estimator_type_str.c_str());
+        e = FuelGauge;
+    }
+    setPowerStateEstimator(e);
+
+    // Publish to power_state
     pub_       = node.advertise<pr2_msgs::PowerState>("power_state", 5);
     pub_timer_ = node.createTimer(ros::Duration(1 / freq), &PowerMonitor::onPublishTimer, this);
 
+    // Subscribe to battery/server
     sub_ = node.subscribe("battery/server", 10, &PowerMonitor::batteryServerUpdate, this);
-
-    power_state_estimator_ = boost::shared_ptr<PowerStateEstimator>(new FuelGaugePowerStateEstimator());
 }
 
-void ros::PowerMonitor::setPowerStateEstimator(boost::shared_ptr<PowerStateEstimator> estimator)
+void ros::PowerMonitor::configCallback(power_monitor::PowerMonitorConfig& config, uint32_t level)
 {
-    power_state_estimator_ = estimator;
+    setPowerStateEstimator((PowerStateEstimatorType) config.power_state_estimator_);
+}
+
+bool ros::PowerMonitor::setPowerStateEstimator(PowerStateEstimatorType estimator_type)
+{
+    PowerStateEstimator* estimator;
+    switch (estimator_type)
+    {
+        case FuelGauge: estimator = new FuelGaugePowerStateEstimator(); break;
+        case Advanced:  estimator = new AdvancedPowerStateEstimator();  break;
+        default:        return false;
+    }
+
+    power_state_estimator_ = boost::shared_ptr<PowerStateEstimator>(estimator);
+
+    ROS_INFO("Setting power state estimation to %s", power_state_estimator_->getMethodName().c_str());
+
+    return true;
+}
+
+bool ros::PowerMonitor::getPowerStateEstimatorType(const std::string& estimator_type_str, PowerStateEstimatorType& estimator_type)
+{
+    if (estimator_type_str == "fuel gauge")
+        estimator_type = FuelGauge;
+    else if (estimator_type_str == "advanced")
+        estimator_type = Advanced;
+    else
+        return false;
+
+    return true;
 }
 
 void ros::PowerMonitor::batteryServerUpdate(const boost::shared_ptr<const pr2_msgs::BatteryServer>& battery_server)
@@ -81,7 +119,7 @@ ros::PowerObservable ros::PowerMonitor::extractPowerObservable()
     {
         const pr2_msgs::BatteryServer* bs = i->second.get();
 
-        bool ac_present = (bs->powerPresent == 0xF);    // all four batteries show AC present
+        bool ac_present = (bs->powerPresent == 0xF);    // all four batteries show AC present?
 
         for (unsigned int j = 0; j < bs->battery.size(); j++)
         {
@@ -93,11 +131,9 @@ ros::PowerObservable ros::PowerMonitor::extractPowerObservable()
             unsigned int tte     = b.batReg[0x12];
             unsigned int ttf     = b.batReg[0x13];
 
-            float power = current * voltage;
-
             batteries.push_back(BatteryObservable(ac_present, voltage, current, rsc, tte, ttf));
 
-            ROS_DEBUG("Battery %d.%d: %6.2f V %6.2f A %6.2f W", bs->id, j + 1, voltage, current, power);
+            ROS_DEBUG("Battery %d.%d: %6.2f V %6.2f A %6.2f W", bs->id, j + 1, voltage, current, current * voltage);
         }
     }
 

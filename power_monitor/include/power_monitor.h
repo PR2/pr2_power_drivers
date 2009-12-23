@@ -41,6 +41,9 @@
 #include "ros/ros.h"
 #include "pr2_msgs/PowerState.h"
 #include "pr2_msgs/BatteryServer.h"
+#include "dynamic_reconfigure/server.h"
+
+#include "power_monitor/PowerMonitorConfig.h"
 
 #include "power_state_estimator.h"
 
@@ -48,26 +51,34 @@ namespace ros
 {
 
 /**
- * This class listens to BatteryServer2 messages and publishes PowerState messages with an estimates of
- * the time remaining either to discharge completely or charging completely.
+ * This class listens to BatteryServer2 messages and publishes PowerState messages with estimates of
+ * the time remaining until the robot switches off (if discharging) or until the robot is fully charged
+ * (if charging).
  */
 class PowerMonitor
 {
 public:
+    typedef enum { FuelGauge, Advanced } PowerStateEstimatorType;
+
     PowerMonitor();
 
-    void setPowerStateEstimator(boost::shared_ptr<PowerStateEstimator> estimator);
+    bool setPowerStateEstimator(PowerStateEstimatorType estimator_type);
 
     void batteryServerUpdate(const boost::shared_ptr<const pr2_msgs::BatteryServer>& bat);
+    void configCallback(power_monitor::PowerMonitorConfig& config, uint32_t level);
 
 private:
     ros::PowerObservable extractPowerObservable();
 
-    static float toFloat(int value);
+    bool getPowerStateEstimatorType(const std::string& estimator_type_str, PowerStateEstimatorType& estimator_type);
 
     void onPublishTimer(const ros::TimerEvent& e);
 
+    static float toFloat(int value);
+
 private:
+    dynamic_reconfigure::Server<power_monitor::PowerMonitorConfig> config_server_;
+
     std::map<int, boost::shared_ptr<const pr2_msgs::BatteryServer> > battery_servers_;
     boost::mutex                                                     battery_servers_mutex_;
 
