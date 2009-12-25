@@ -39,55 +39,9 @@
 
 #include "ros/ros.h"
 
-namespace ros
-{
+#include "observation.h"
 
-class BatteryObservable;
-
-/**
- * Stores information about the power system (all batteries) used to estimate the power state.
- */
-class PowerObservable
-{
-public:
-    PowerObservable();
-    PowerObservable(const std::vector<BatteryObservable>& batteries);
-
-    const std::vector<BatteryObservable>& getBatteries() const;
-
-    int   getAcCount() const;
-    float getTotalPower() const;
-    float getMinVoltage() const;
-
-private:
-    std::vector<BatteryObservable> batteries_;
-};
-
-/**
- * Stores information about a single battery used to estimate the power state.
- */
-class BatteryObservable
-{
-public:
-    BatteryObservable(bool ac_present, float voltage, float current, unsigned int remaing_capacity, unsigned int time_to_empty, unsigned int time_to_full);
-
-    bool         isAcPresent() const;
-    float        getVoltage() const;
-    float        getCurrent() const;
-    unsigned int getRemainingCapacity() const;
-    unsigned int getTimeToEmpty() const;
-    unsigned int getTimeToFull() const;
-
-    float getPower() const;
-
-private:
-    bool         ac_present_;
-    float        voltage_;
-    float        current_;
-    unsigned int remaining_capacity_;
-    unsigned int time_to_empty_;
-    unsigned int time_to_full_;
-};
+namespace power_monitor {
 
 struct PowerStateEstimate
 {
@@ -96,36 +50,75 @@ struct PowerStateEstimate
 };
 
 /**
- * PowerStateEstimator takes a PowerObservable and produces a PowerStateEstimate.
+ * PowerStateEstimator can takes observable power inputs (PowerObservation) and estimates the hidden power state (PowerStateEstimate).
  */
 class PowerStateEstimator
 {
 public:
-    virtual std::string        getMethodName() const = 0;
-    virtual PowerStateEstimate estimate(const PowerObservable& power) = 0;
+    enum Type { FuelGauge, Advanced };
+
+    PowerStateEstimator();
+
+    virtual std::string               getMethodName() const = 0;
+    virtual PowerStateEstimator::Type getMethodType() const = 0;
+    virtual PowerStateEstimate        estimate(const ros::Time& t) = 0;
+
+    virtual void recordObservation(const PowerObservation& obs);
+
+    virtual bool canEstimate(const ros::Time& t) const;
+
+protected:
+    PowerObservation obs_;
 };
 
-/** A simple power state estimator which uses the minimum & maximum time
-  * remaining and the minimum remaining capacity reported by the battery servers.
+/** A simple power state estimator which relies on the values reported by thebatteries themselves
+  * for the minimum & maximum time remaining and the minimum remaining capacity..
   */
 class FuelGaugePowerStateEstimator : public PowerStateEstimator
 {
 public:
-    std::string        getMethodName() const;
-    PowerStateEstimate estimate(const PowerObservable& power);
+    std::string               getMethodName() const;
+    PowerStateEstimator::Type getMethodType() const;
+    PowerStateEstimate        estimate(const ros::Time& t);
 };
 
-/** A more advanced power state estimator which takes the history of the
-  * battery state into account.
-  * @todo: implement
+/** A more advanced power state estimator which is informed by the history of the batteries.
   */
 class AdvancedPowerStateEstimator : public PowerStateEstimator
 {
 public:
-    std::string        getMethodName() const;
-    PowerStateEstimate estimate(const PowerObservable& power);
+    struct LogRecord
+    {
+        uint32_t     sec;
+        int          charging;
+        float        total_power;
+        float        min_voltage;
+        unsigned int min_relative_state_of_charge;
+        float        total_remaining_capacity;
+    };
+
+    AdvancedPowerStateEstimator();
+
+    std::string               getMethodName() const;
+    PowerStateEstimator::Type getMethodType() const;
+    PowerStateEstimate        estimate(const ros::Time& t);
+
+    virtual void recordObservation(const PowerObservation& obs);
+
+protected:
+    static void tokenize(const std::string& str, std::vector<std::string>& tokens, const std::string& delimiters=",");
+
+    bool logFileExists() const;
+    void readObservations(std::vector<LogRecord>& log);
+    bool saveObservation(const PowerObservation& obs) const;
+    bool hasEverDischarged() const;
+
+protected:
+    std::vector<LogRecord> log_;
+
+    std::string log_filename_;
 };
 
 }
 
-#endif
+#endif /* POWER_MONITOR_POWER_STATE_ESTIMATOR_H */

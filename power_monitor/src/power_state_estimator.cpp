@@ -35,132 +35,206 @@
 #include "power_state_estimator.h"
 
 #include <stdlib.h>
+#include <fstream>
+#include <iostream>
 
 #include "ros/ros.h"
 
 using namespace std;
+using namespace power_monitor;
 
-// PowerObservable
+// PowerStateEstimator
 
-ros::PowerObservable::PowerObservable() { }
+PowerStateEstimator::PowerStateEstimator() { }
 
-ros::PowerObservable::PowerObservable(const vector<ros::BatteryObservable>& batteries) : batteries_(batteries) { }
-
-const vector<ros::BatteryObservable>& ros::PowerObservable::getBatteries() const { return batteries_; }
-
-int ros::PowerObservable::getAcCount() const
+void PowerStateEstimator::recordObservation(const PowerObservation& obs)
 {
-    int ac_count = 0;
-    for (unsigned int i = 0; i < batteries_.size(); i++)
-        if (batteries_[i].isAcPresent())
-            ac_count++;
-
-    return ac_count;
+    obs_ = obs;
 }
 
-float ros::PowerObservable::getTotalPower() const
+bool PowerStateEstimator::canEstimate(const ros::Time& t) const
 {
-    float total_power = 0.0f;
-    for (unsigned int i = 0; i < batteries_.size(); i++)
-        total_power += batteries_[i].getPower();
-
-    return total_power;
+    return t >= ros::Time::now() && obs_.getBatteries().size() > 0;
 }
 
-float ros::PowerObservable::getMinVoltage() const
-{
-    float min_voltage = 9999.9f;
-    for (unsigned int i = 0; i < batteries_.size(); i++)
-        min_voltage = min(min_voltage, batteries_[i].getVoltage());
+// FuelGaugePowerStateEstimator
 
-    return min_voltage;
+string                    FuelGaugePowerStateEstimator::getMethodName() const { return "fuel gauge"; }
+PowerStateEstimator::Type FuelGaugePowerStateEstimator::getMethodType() const { return FuelGauge;    }
+
+PowerStateEstimate FuelGaugePowerStateEstimator::estimate(const ros::Time& t)
+{
+    // @todo: take in a parameter for assumed future power usage
+
+    PowerStateEstimate ps;
+    ps.time_remaining    = obs_.getAcCount() > 0 ? obs_.getMaxTimeToFull(t) : obs_.getMinTimeToEmpty(t);
+    ps.relative_capacity = obs_.getMinRelativeStateOfCharge();
+
+    return ps;
 }
 
-// BatteryObservable
+// AdvancedPowerStateEstimator
 
-ros::BatteryObservable::BatteryObservable(bool ac_present, float voltage, float current, unsigned int remaining_capacity, unsigned int time_to_empty, unsigned int time_to_full)
-    : ac_present_(ac_present), voltage_(voltage), current_(current), remaining_capacity_(remaining_capacity), time_to_empty_(time_to_empty), time_to_full_(time_to_full)
+AdvancedPowerStateEstimator::AdvancedPowerStateEstimator()
 {
+    ros::NodeHandle node;
+
+    log_filename_ = "/hwlog/power_monitor/power.log";
+    node.getParam("/power_monitor/advanced_log_file", log_filename_);
+    ROS_INFO("Using log file: %s", log_filename_.c_str());
+
+    readObservations(log_);
 }
 
-bool         ros::BatteryObservable::isAcPresent()          const { return ac_present_;         }
-float        ros::BatteryObservable::getVoltage()           const { return voltage_;            }
-float        ros::BatteryObservable::getCurrent()           const { return current_;            }
-unsigned int ros::BatteryObservable::getRemainingCapacity() const { return remaining_capacity_; }
-unsigned int ros::BatteryObservable::getTimeToEmpty()       const { return time_to_empty_;      }
-unsigned int ros::BatteryObservable::getTimeToFull()        const { return time_to_full_;       }
+string                    AdvancedPowerStateEstimator::getMethodName() const { return "advanced"; }
+PowerStateEstimator::Type AdvancedPowerStateEstimator::getMethodType() const { return Advanced;   }
 
-float ros::BatteryObservable::getPower() const
+void AdvancedPowerStateEstimator::recordObservation(const PowerObservation& obs)
 {
-    return voltage_ * current_;
-}
+    PowerStateEstimator::recordObservation(obs);
 
-// FuelGaugePowerEstimator
-
-std::string ros::FuelGaugePowerStateEstimator::getMethodName() const
-{
-    return "fuel gauge";
-}
-
-ros::PowerStateEstimate ros::FuelGaugePowerStateEstimator::estimate(const ros::PowerObservable& power)
-{
-    // Get the number of batteries charging, the minimum capacity of the batteries, and the maximum & minimum time remaining
-    int          ac_count     = 0;
-    unsigned int min_capacity = 0;
-    unsigned int max_ttf      = 0;
-    unsigned int min_tte      = 0;
-    for (unsigned int i = 0; i < power.getBatteries().size(); i++)
+    if (obs.getBatteries().size() == 16)
     {
-        const BatteryObservable& b = power.getBatteries()[i];
+        LogRecord record;
+        record.sec                          = obs.getStamp().sec;
+        record.charging                     = obs.getAcCount();
+        record.total_power                  = obs.getTotalPower();
+        record.min_voltage                  = obs.getMinVoltage();
+        record.min_relative_state_of_charge = obs.getMinRelativeStateOfCharge();
+        record.total_remaining_capacity     = obs.getTotalRemainingCapacity();
+        log_.push_back(record);
 
-        bool         ac_present = b.isAcPresent();
-        unsigned int rsc        = b.getRemainingCapacity();
-        unsigned int tte        = b.getTimeToEmpty();
-        unsigned int ttf        = b.getTimeToFull();
+        saveObservation(obs);
+    }
+}
 
-        if (ac_present)
-            ac_count++;
+bool AdvancedPowerStateEstimator::hasEverDischarged() const
+{
+    // @todo: implement
+    return true;
+}
 
-        if ((tte != 65535) && (i == 0 || tte < min_tte))
-            min_tte = tte;
-        if ((ttf != 65535) && (i == 0 || ttf > max_ttf))
-            max_ttf = ttf;
-        if (i == 0 || rsc < min_capacity)
-            min_capacity = rsc;
+PowerStateEstimate AdvancedPowerStateEstimator::estimate(const ros::Time& t)
+{
+    PowerStateEstimate ps;
+
+    // If we have history of the batteries being completely drained, then offset our estimate by the minimum reported capacity
+    if (log_.size() > 0 && obs_.getAcCount() == 0 && hasEverDischarged())
+    {
+        // Get the minimum remaining capacity reported ever
+        unsigned int min_rsc     = 999;
+        float        min_rem_cap = 999999.9;
+        for (vector<LogRecord>::const_iterator i = log_.begin(); i != log_.end(); i++)
+        {
+            min_rsc     = min(min_rsc,     (*i).min_relative_state_of_charge);
+            min_rem_cap = min(min_rem_cap, (*i).total_remaining_capacity);
+        }
+
+        // @todo: should filter the noisy current
+        float current        = obs_.getTotalPower() / obs_.getMinVoltage();
+
+        float actual_rem_cap = obs_.getTotalRemainingCapacity() - min_rem_cap;
+        float rem_hours      = actual_rem_cap / -current;
+
+        ROS_INFO("minimum reported remaining capacity: %f", min_rem_cap);
+        ROS_INFO("minimum reported relative state of charge: %d", min_rsc);
+        ROS_INFO("current: %f", current);
+        ROS_INFO("report remaining capacity: %f", obs_.getTotalRemainingCapacity());
+        ROS_INFO("time remaining: %.2f mins", rem_hours * 60);
+
+        ps.time_remaining = ros::Duration(rem_hours * 60 * 60);
+    }
+    else
+    {
+        // No history. Resort to simplistic
+        ps.time_remaining = obs_.getAcCount() > 0 ? obs_.getMaxTimeToFull(t) : obs_.getMinTimeToEmpty(t);
     }
 
-    if (min_capacity == 999)
-        min_capacity = 0;
-
-    // If charging, use the maximum time-to-full, otherwise use the minimum time-to-empty.
-    unsigned int  time_remaining_mins = (ac_count > 0 ? max_ttf : min_tte);
-    ros::Duration time_remaining      = ros::Duration().fromSec(time_remaining_mins * 60);
-
-    ros::PowerStateEstimate ps;
-    ps.time_remaining    = time_remaining;
-    ps.relative_capacity = min_capacity;
+    ps.relative_capacity = obs_.getMinRelativeStateOfCharge();
 
     return ps;
 }
 
-// AdvancedPowerEstimator
-
-std::string ros::AdvancedPowerStateEstimator::getMethodName() const
+void AdvancedPowerStateEstimator::tokenize(const string& str, vector<string>& tokens, const string& delimiters)
 {
-    return "advanced";
+    string::size_type last_pos = str.find_first_not_of(delimiters, 0);
+    string::size_type pos      = str.find_first_of(delimiters, last_pos);
+
+    while (string::npos != pos || string::npos != last_pos)
+    {
+        tokens.push_back(str.substr(last_pos, pos - last_pos));
+
+        last_pos = str.find_first_not_of(delimiters, pos);
+        pos      = str.find_first_of(delimiters, last_pos);
+    }
 }
 
-ros::PowerStateEstimate ros::AdvancedPowerStateEstimator::estimate(const ros::PowerObservable& power)
+bool AdvancedPowerStateEstimator::logFileExists() const
 {
-    ros::Duration time_remaining     = ros::Duration().fromSec(0 * 60);
-    unsigned int  remaining_capacity = 0;
+    ifstream fin(log_filename_.c_str(), ios::in);
+    bool exists = !fin.fail();
+    if (exists)
+        fin.close();
 
-    ROS_ERROR("not implemented");
-
-    ros::PowerStateEstimate ps;
-    ps.time_remaining    = time_remaining;
-    ps.relative_capacity = remaining_capacity;
-
-    return ps;
+    return exists;
 }
 
+// @todo: make robust
+void AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
+{
+    ifstream f(log_filename_.c_str(), ios::in);
+
+    // Consume header line
+    string line;
+    getline(f, line);
+
+    while (f.good())
+    {
+        getline(f, line);
+
+        vector<string> tokens;
+        tokenize(line, tokens, ",");
+
+        if (tokens.size() == 6)
+        {
+            LogRecord record;
+            record.sec                          = boost::lexical_cast<uint32_t>(tokens[0]);
+            record.charging                     = boost::lexical_cast<int>(tokens[1]);
+            record.total_power                  = boost::lexical_cast<float>(tokens[2]);
+            record.min_voltage                  = boost::lexical_cast<float>(tokens[3]);
+            record.min_relative_state_of_charge = boost::lexical_cast<unsigned int>(tokens[4]);
+            record.total_remaining_capacity     = boost::lexical_cast<float>(tokens[5]);
+            log.push_back(record);
+        }
+    }
+
+    f.close();
+}
+
+bool AdvancedPowerStateEstimator::saveObservation(const PowerObservation& obs) const
+{
+    bool exists = logFileExists();
+
+    // Write out the log file
+    ofstream f(log_filename_.c_str(), ios::out | ios::app);
+    if (f.fail())
+    {
+        ROS_ERROR("Error opening power monitor log file: %s", log_filename_.c_str());
+        return false;
+    }
+
+    // Write the header if it doesn't exist
+    if (!exists)
+        f << "secs,charging,total_power,min_voltage,min_relative_state_of_charge,total_remaining_capacity" << endl;
+
+    f << obs.getStamp().sec << ","
+      << obs.getAcCount() << ","
+      << obs.getTotalPower() << ","
+      << obs.getMinVoltage() << ","
+      << obs.getMinRelativeStateOfCharge() << ","
+      << obs.getTotalRemainingCapacity() << endl;
+
+    f.close();
+
+    return true;
+}

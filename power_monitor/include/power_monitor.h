@@ -47,8 +47,7 @@
 
 #include "power_state_estimator.h"
 
-namespace ros
-{
+namespace power_monitor {
 
 /**
  * This class listens to BatteryServer2 messages and publishes PowerState messages with estimates of
@@ -58,19 +57,17 @@ namespace ros
 class PowerMonitor
 {
 public:
-    typedef enum { FuelGauge, Advanced } PowerStateEstimatorType;
-
     PowerMonitor();
 
-    bool setPowerStateEstimator(PowerStateEstimatorType estimator_type);
+    bool setActiveEstimator(PowerStateEstimator::Type estimator_type);
 
     void batteryServerUpdate(const boost::shared_ptr<const pr2_msgs::BatteryServer>& bat);
     void configCallback(power_monitor::PowerMonitorConfig& config, uint32_t level);
 
 private:
-    ros::PowerObservable extractPowerObservable();
+    void addEstimator(PowerStateEstimator* estimator);
 
-    bool getPowerStateEstimatorType(const std::string& estimator_type_str, PowerStateEstimatorType& estimator_type);
+    PowerObservation extractObservation();
 
     void onPublishTimer(const ros::TimerEvent& e);
 
@@ -82,17 +79,18 @@ private:
     std::map<int, boost::shared_ptr<const pr2_msgs::BatteryServer> > battery_servers_;
     boost::mutex                                                     battery_servers_mutex_;
 
+    std::map<std::string,               PowerStateEstimator::Type>               estimator_types_;
+    std::map<PowerStateEstimator::Type, boost::shared_ptr<PowerStateEstimator> > estimators_;
+
+    boost::shared_ptr<PowerStateEstimator> active_estimator_;
+
     ros::Timer      pub_timer_;
     ros::Publisher  pub_;
     ros::Subscriber sub_;
 
-    ros::PowerObservable power_observable_;
-
-    boost::shared_ptr<PowerStateEstimator> power_state_estimator_;
-
-    pr2_msgs::PowerState power_state_;
+    PowerObservation observation_;
 };
 
 }
 
-#endif
+#endif /* POWER_MONITOR_POWER_MONITOR_H */
