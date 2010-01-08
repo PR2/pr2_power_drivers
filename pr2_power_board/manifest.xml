@@ -2,7 +2,7 @@
   <description>This provides a ros node for the PR2 Power Board</description>
   <author>Curt Meyers, Blaise Gassend</author>
   <license>BSD</license>
-  <review status="API cleared" notes=""/>
+  <review status="Doc reviewed" notes="Dec 2009"/>
   <depend package="roscpp" />
   <depend package="rospy" />
   <depend package="diagnostic_updater" />
