@@ -220,7 +220,21 @@ class server
                     ss << os.regList[yy].name << " (" << os.regList[yy].unit << ")";
                   else
                     ss << os.regList[yy].name;
-                  stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
+                  
+                  if(addr == 0x1b)
+                  {
+                    std::stringstream date;
+                    date.str("");
+
+                    unsigned int day = os.server.battery[xx].battery_register[addr] & 0x1F;
+                    unsigned int month = (os.server.battery[xx].battery_register[addr] >> 5) & 0xF;
+                    unsigned int year = (os.server.battery[xx].battery_register[addr] >> 9) + 1980;
+                    date << day << "/" << month << "/" << year;
+                    
+                    stat.add( ss.str(), date.str());
+                  }
+                  else
+                    stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
                 }
               }
 
