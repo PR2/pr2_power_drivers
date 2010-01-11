@@ -23,6 +23,8 @@ using namespace ros;
 using namespace willowgarage::ocean;
 namespace po = boost::program_options;
 
+static const float BATTERY_TEMP_WARN = 45.0;
+
 float toFloat(const int &value)
 {
   int tmp = value;
@@ -221,7 +223,7 @@ class server
                   else
                     ss << os.regList[yy].name;
                   
-                  if(addr == 0x1b)
+                  if(addr == 0x1b)  //Address of manufactureDate
                   {
                     std::stringstream date;
                     date.str("");
@@ -232,6 +234,19 @@ class server
                     date << day << "/" << month << "/" << year;
                     
                     stat.add( ss.str(), date.str());
+                  }
+                  else if(addr == 0x8)  //Address of Temperature
+                  {
+                    int iKelvin = os.server.battery[xx].battery_register[addr];
+                    float fKelvin = (float) (iKelvin * 0.1);
+                    float celsius = fKelvin - (float) 273.15;
+                    if(celsius > BATTERY_TEMP_WARN)
+                    {
+                      ostringstream warn;
+                      stat.level = 1;
+                      warn << "High Temperature Warning > " << BATTERY_TEMP_WARN << "C";
+                      stat.message = warn.str();
+                    }
                   }
                   else
                     stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
