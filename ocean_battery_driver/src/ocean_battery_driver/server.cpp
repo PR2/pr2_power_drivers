@@ -205,14 +205,14 @@ class server
               stat.add("Charge Inhibited", (os.server.battery[xx].inhibited) ? "True":"False");
 	      
               for(unsigned int yy = 0; yy < os.regListLength; ++yy)
-	      {
-		unsigned addr = os.regList[yy].address;
-		if(os.server.battery[xx].battery_update_flag[addr])
-		{
-		  ss.str("");
-		  if(os.regList[yy].unit != "")
-		    ss << os.regList[yy].name << " (" << os.regList[yy].unit << ")";
-		  else
+              {
+                unsigned addr = os.regList[yy].address;
+                if(os.server.battery[xx].battery_update_flag[addr])
+                {
+                  ss.str("");
+                  if(os.regList[yy].unit != "")
+                    ss << os.regList[yy].name << " (" << os.regList[yy].unit << ")";
+                  else
                     ss << os.regList[yy].name;
                   
                   if(addr == 0x1b)  //Address of manufactureDate
@@ -241,20 +241,20 @@ class server
                     }
 
                     stat.add( "Temperature (C)", celsius);
-		  }
-		  else if(addr == 0x1c) // Serial Number
-		  {
-		    stat.add("Serial Number", os.server.battery[xx].battery_register[addr]);
+                  }
+                  else if(addr == 0x1c) // Serial Number
+                  {
+                    stat.add("Serial Number", os.server.battery[xx].battery_register[addr]);
 
-		    std::stringstream hw_id;
-		    hw_id << os.server.battery[xx].battery_register[addr];
+                    std::stringstream hw_id;
+                    hw_id << os.server.battery[xx].battery_register[addr];
 
-		    stat.hardware_id = hw_id.str();
-		  }
+                    stat.hardware_id = hw_id.str();
+                  }
                   else
-		  {
-                    stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
-		  }
+                  {
+                      stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
+                  }
                 }
               }
 

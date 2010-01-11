@@ -31,37 +31,37 @@ const int ocean::NMEA_PACKET;
 //Takend from the Smart Battery Data Specification Revision 1.1, Dec. 11, 1998
 //
 const struct ocean::regPair ocean::regList[] = {
-      {"manufacturerAccess"      ,""      , 0x00},
-      {"remainingCapacityAlarm"  ,""      , 0x01},
-      {"remainingTimeAlarm"      ,"min"   , 0x02},
-      {"batteryMode"             ,""      , 0x03},
-      {"atRate"                  ,"mA"    , 0x04},  //could also be mW
-      {"atRateTimeToFull"        ,"min"   , 0x05},
-      {"atRateTimeToEmpty"       ,"min"   , 0x06},
-      {"atRateOK"                ,"bool"  , 0x07},
-      {"temperature"             ,"0.1 K" , 0x08}, 
-      {"voltage"                 ,"mV"    , 0x09}, 
-      {"current"                 ,"mA"    , 0x0a}, 
-      {"averageCurrent"          ,"mA"    , 0x0b}, 
-      {"maxError"                ,"%"     , 0x0c}, 
-      {"relativeStateOfCharge"   ,"%"     , 0x0d},
-      {"absoluteStateOfCharge"   ,"%"     , 0x0e}, 
-      {"remainingCapacity"       ,"mAh"   , 0x0f},  //could also be mWh
-      {"fullChargeCapacity"      ,"mAh"   , 0x10},  //could also be mWh
-      {"runTimeToEmpty"          ,"min"   , 0x11}, 
-      {"averageTimeToEmpty"      ,"min"   , 0x12}, 
-      {"averageTimeToFull"       ,"min"   , 0x13}, 
-      {"batteryStatus"           ,""      , 0x16}, 
-      {"cycleCount"              ,"cycle" , 0x17}, 
-      {"designCapacity"          ,"mAh"   , 0x18}, //could also be mWh
-      {"designVoltage"           ,"mV"    , 0x19}, 
-      {"specificationInfo"       ,""      , 0x1a}, 
-      {"manufactureDate"         ,"DMY"   , 0x1b}, 
-      {"serialNumber"            ,"uint"  , 0x1c}, 
-      {"manufactureName"         ,"string", 0x20}, 
-      {"deviceName"              ,"string", 0x21}, 
-      {"deviceChemistry"         ,"string", 0x22}, 
-      {"manufactureData"         ,""      , 0x23}
+      {"Manufacturer Access"      ,""      , 0x00},
+      {"Remaining Capacity Alarm" ,""      , 0x01},
+      {"Remaining Time Alarm"     ,"min"   , 0x02},
+      {"Battery Mode"             ,""      , 0x03},
+      {"At Rate"                  ,"mA"    , 0x04},  //could also be mW
+      {"At Rate Time To Full"     ,"min"   , 0x05},
+      {"At Rate Time To Empty"    ,"min"   , 0x06},
+      {"At Rate OK"               ,"bool"  , 0x07},
+      {"Temperature"              ,"0.1 K" , 0x08}, 
+      {"Voltage"                  ,"mV"    , 0x09}, 
+      {"Current"                  ,"mA"    , 0x0a}, 
+      {"Average Current"          ,"mA"    , 0x0b}, 
+      {"Max Error"                ,"%"     , 0x0c}, 
+      {"Relative State Of Charge" ,"%"     , 0x0d},
+      {"Absolute State Of Charge" ,"%"     , 0x0e}, 
+      {"Remaining Capacity"       ,"mAh"   , 0x0f},  //could also be mWh
+      {"Full Charge Capacity"     ,"mAh"   , 0x10},  //could also be mWh
+      {"Run Time To Empty"        ,"min"   , 0x11}, 
+      {"Average Time To Empty"    ,"min"   , 0x12}, 
+      {"Average Time To Full"     ,"min"   , 0x13}, 
+      {"Battery Status"           ,""      , 0x16}, 
+      {"Cycle Count"              ,"cycle" , 0x17}, 
+      {"Design Capacity"          ,"mAh"   , 0x18}, //could also be mWh
+      {"Design Voltage"           ,"mV"    , 0x19}, 
+      {"Specification Info"       ,""      , 0x1a}, 
+      {"Manufacture Date"         ,"DMY"   , 0x1b}, 
+      {"Serial Number"            ,"uint"  , 0x1c}, 
+      {"Manufacture Name"         ,"string", 0x20}, 
+      {"Device Name"              ,"string", 0x21}, 
+      {"Device Chemistry"         ,"string", 0x22}, 
+      {"Manufacture Data"         ,""      , 0x23}
     };
 const unsigned ocean::regListLength(sizeof(regList)/ sizeof(struct regPair));
 /**
