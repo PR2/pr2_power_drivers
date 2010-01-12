@@ -106,8 +106,8 @@ class server
       //  concern that one message it quickly replaced by another threads message.
       //
       ros::Publisher pub    = handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 10);
-      ros::Publisher bs2    = handle.advertise<pr2_msgs::BatteryServer2>("/battery/server2", 10);
-      ros::Publisher bs     = handle.advertise<pr2_msgs::BatteryServer>("/battery/server", 10);
+      ros::Publisher bs2    = handle.advertise<pr2_msgs::BatteryServer2>("battery/server2", 10);
+      ros::Publisher bs     = handle.advertise<pr2_msgs::BatteryServer>("battery/server", 10);
 
       ros::Rate rate(100);   //set the rate we scan the device for input
       diagnostic_msgs::DiagnosticArray msg_out;
@@ -132,12 +132,7 @@ class server
         {
 
           // First publish our internal data
-
-          // FIX ME:
-          // Setting time to currentTime before publishing.  This may
-          // not be correct, but at least gets rid of deprecationg
-          // warning.
-          os.server.header.stamp = currentTime;
+          os.server.header.stamp = ros::Time::now();
           bs2.publish(os.server);
 
           oldserver.id = os.server.id;
