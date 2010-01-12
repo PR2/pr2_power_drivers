@@ -654,7 +654,7 @@ void PowerBoard::init()
   service = node_handle.advertiseService("control", &PowerBoard::commandCallback, this);
 
   diags_pub = node_handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
-  state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("state", 2);
+  state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("state", 2, true);
 }
 
 
