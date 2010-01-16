@@ -37,8 +37,6 @@
 #include <stdlib.h>
 #include <fstream>
 #include <iostream>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 #include "ros/ros.h"
 
@@ -77,18 +75,15 @@ PowerStateEstimate FuelGaugePowerStateEstimator::estimate(const ros::Time& t)
 
 // AdvancedPowerStateEstimator
 
-const std::string AdvancedPowerStateEstimator::DEFAULT_LOG_FILE = "/hwlog/power_monitor/power.log";
-
 AdvancedPowerStateEstimator::AdvancedPowerStateEstimator()
 {
     ros::NodeHandle node;
 
-    std::string log_filename(DEFAULT_LOG_FILE);
-    node.getParam("/power_monitor/advanced_log_file", log_filename);
-    ROS_INFO("Using log file: %s", log_filename.c_str());
+    log_filename_ = "/hwlog/power_monitor/power.log";
+    node.getParam("/power_monitor/advanced_log_file", log_filename_);
+    ROS_INFO("Using log file: %s", log_filename_.c_str());
 
     readObservations(log_);
-    ROS_INFO("Read %d observations", log_.size());
 }
 
 string                    AdvancedPowerStateEstimator::getMethodName() const { return "advanced"; }
@@ -98,20 +93,19 @@ void AdvancedPowerStateEstimator::recordObservation(const PowerObservation& obs)
 {
     PowerStateEstimator::recordObservation(obs);
 
-    // Ignore any observation with less than 16 batteries
-    if (obs.getBatteries().size() != 16)
-        return;
+    if (obs.getBatteries().size() == 16)
+    {
+        LogRecord record;
+        record.sec                          = obs.getStamp().sec;
+        record.charging                     = obs.getAcCount();
+        record.total_power                  = obs.getTotalPower();
+        record.min_voltage                  = obs.getMinVoltage();
+        record.min_relative_state_of_charge = obs.getMinRelativeStateOfCharge();
+        record.total_remaining_capacity     = obs.getTotalRemainingCapacity();
+        log_.push_back(record);
 
-    LogRecord record;
-    record.sec                          = obs.getStamp().sec;
-    record.charging                     = obs.getAcCount();
-    record.total_power                  = obs.getTotalPower();
-    record.min_voltage                  = obs.getMinVoltage();
-    record.min_relative_state_of_charge = obs.getMinRelativeStateOfCharge();
-    record.total_remaining_capacity     = obs.getTotalRemainingCapacity();
-    log_.push_back(record);
-
-    saveObservation(obs);
+        saveObservation(obs);
+    }
 }
 
 bool AdvancedPowerStateEstimator::hasEverDischarged() const
@@ -185,90 +179,47 @@ bool AdvancedPowerStateEstimator::logFileExists() const
     return exists;
 }
 
-bool AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
+// @todo: make robust
+void AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
 {
     ifstream f(log_filename_.c_str(), ios::in);
-    if (!f.is_open())
-        return false;
 
     // Consume header line
     string line;
     getline(f, line);
-    if (!f.good())
-    {
-        ROS_WARN("Error reading header from log file: %s", log_filename_.c_str());
-        return false;
-    }
 
-    int line_num = 1;
-    while (true)
+    while (f.good())
     {
         getline(f, line);
-        if (!f.good())
-            break;
 
         vector<string> tokens;
         tokenize(line, tokens, ",");
 
-        if (tokens.size() != 6)
+        if (tokens.size() == 6)
         {
-            ROS_WARN("Invalid line %d in log file: %s.  Aborting read.", line_num, log_filename_.c_str());
-            break;
+            LogRecord record;
+            record.sec                          = boost::lexical_cast<uint32_t>(tokens[0]);
+            record.charging                     = boost::lexical_cast<int>(tokens[1]);
+            record.total_power                  = boost::lexical_cast<float>(tokens[2]);
+            record.min_voltage                  = boost::lexical_cast<float>(tokens[3]);
+            record.min_relative_state_of_charge = boost::lexical_cast<unsigned int>(tokens[4]);
+            record.total_remaining_capacity     = boost::lexical_cast<float>(tokens[5]);
+            log.push_back(record);
         }
-
-        LogRecord record;
-        record.sec                          = boost::lexical_cast<uint32_t>(tokens[0]);
-        record.charging                     = boost::lexical_cast<int>(tokens[1]);
-        record.total_power                  = boost::lexical_cast<float>(tokens[2]);
-        record.min_voltage                  = boost::lexical_cast<float>(tokens[3]);
-        record.min_relative_state_of_charge = boost::lexical_cast<unsigned int>(tokens[4]);
-        record.total_remaining_capacity     = boost::lexical_cast<float>(tokens[5]);
-        log.push_back(record);
-
-        line_num++;
     }
 
     f.close();
-
-    return true;
 }
 
 bool AdvancedPowerStateEstimator::saveObservation(const PowerObservation& obs) const
 {
     bool exists = logFileExists();
 
-    if (!exists)
-    {
-        cout << log_filename_ << endl;
-
-        // Check if the directory exists
-        size_t last_dir_sep = log_filename_.rfind("/");
-        if (last_dir_sep == string::npos)
-        {
-            ROS_ERROR("Invalid log file: %s", log_filename_.c_str());
-            return false;
-        }
-
-        string log_dir = log_filename_.substr(0, last_dir_sep);
-
-        struct stat s;
-        if (stat(log_dir.c_str(), &s) != 0)
-        {
-            // Directory doesn't exist - create
-            ROS_INFO("Creating log file directory: %s", log_dir.c_str());
-            if (mkdir(log_dir.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH) != 0)      // create directory with permissions: rw-rw-rw-
-            {
-                ROS_ERROR("Error creating power monitor log file directory");
-                return false;
-            }
-        }
-    }
-
     // Write out the log file
     ofstream f(log_filename_.c_str(), ios::out | ios::app);
     if (f.fail())
     {
-        ROS_ERROR("Error opening log file: %s", log_filename_.c_str());
+        ROS_ERROR("Error opening power monitor log file: %s", log_filename_.c_str());
         return false;
     }
 

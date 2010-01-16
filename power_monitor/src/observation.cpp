@@ -49,7 +49,7 @@ PowerObservation::PowerObservation() { }
 
 PowerObservation::PowerObservation(const ros::Time& stamp, const vector<BatteryObservation>& batteries) : stamp_(stamp), batteries_(batteries) { }
 
-const ros::Time&                  PowerObservation::getStamp()     const { return stamp_;     }
+const ros::Time&                 PowerObservation::getStamp()     const { return stamp_;     }
 const vector<BatteryObservation>& PowerObservation::getBatteries() const { return batteries_; }
 
 unsigned int PowerObservation::getAcCount() const
