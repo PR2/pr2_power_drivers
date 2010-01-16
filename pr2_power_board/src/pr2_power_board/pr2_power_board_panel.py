@@ -146,7 +146,10 @@ class PowerBoardPanel(wx.Panel):
             self.chooseBoard(name)
 
     def diagnostics_callback(self, message):
-        self._mutex.acquire()
+        try:
+            self._mutex.acquire()
+        except:
+            return
         self._messages.append(message)
         self._mutex.release()
             
