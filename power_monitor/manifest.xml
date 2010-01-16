@@ -6,7 +6,7 @@
      friendlier message format.
 
   </description>
-  <author>Curt Meyers</author>
+  <author>Curt Meyers, Tim Field</author>
   <license>BSD</license>
   <review status="Doc reviewed" notes="Dec 2009"/>
   <url>http://www.ros.org/wiki/power_monitor</url>
@@ -16,5 +16,3 @@
   <depend package="dynamic_reconfigure"/>
 
 </package>
-
-
