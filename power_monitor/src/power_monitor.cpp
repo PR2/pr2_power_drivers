@@ -43,7 +43,7 @@ PowerMonitor::PowerMonitor() : master_state_(-1)
 
     string battery_server_topic = "/battery/server2";
     string power_board_node     = "/power_board";
-    string estimator_type_str   = "fuel gauge";
+    string estimator_type_str   = "advanced";
     double freq                 = 0.1;
 
     node.getParam("battery_server_topic", battery_server_topic);
