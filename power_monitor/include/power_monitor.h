@@ -39,9 +39,11 @@
 #include <boost/thread/mutex.hpp>
 
 #include "ros/ros.h"
-#include "pr2_msgs/PowerState.h"
-#include "pr2_msgs/BatteryServer.h"
 #include "dynamic_reconfigure/server.h"
+
+#include "pr2_msgs/BatteryServer2.h"
+#include "pr2_msgs/PowerBoardState.h"
+#include "pr2_msgs/PowerState.h"
 
 #include "power_monitor/PowerMonitorConfig.h"
 
@@ -50,9 +52,9 @@
 namespace power_monitor {
 
 /**
- * This class listens to BatteryServer2 messages and publishes PowerState messages with estimates of
- * the time remaining until the robot switches off (if discharging) or until the robot is fully charged
- * (if charging).
+ * This class listens to BatteryServer2 and PowerBoardState messages and publishes PowerState messages with
+ * estimates of the time remaining until the robot switches off (if discharging) or until the robot is fully
+ * charged (if charging).
  */
 class PowerMonitor
 {
@@ -61,7 +63,8 @@ public:
 
     bool setActiveEstimator(PowerStateEstimator::Type estimator_type);
 
-    void batteryServerUpdate(const boost::shared_ptr<const pr2_msgs::BatteryServer>& bat);
+    void batteryServerUpdate(const boost::shared_ptr<const pr2_msgs::BatteryServer2>& battery_server);
+    void powerNodeUpdate(const boost::shared_ptr<const pr2_msgs::PowerBoardState>& power_board_state);
     void configCallback(power_monitor::PowerMonitorConfig& config, uint32_t level);
 
 private:
@@ -76,17 +79,18 @@ private:
 private:
     dynamic_reconfigure::Server<power_monitor::PowerMonitorConfig> config_server_;
 
-    std::map<int, boost::shared_ptr<const pr2_msgs::BatteryServer> > battery_servers_;
-    boost::mutex                                                     battery_servers_mutex_;
+    std::map<int, boost::shared_ptr<const pr2_msgs::BatteryServer2> > battery_servers_;
+    boost::mutex                                                      battery_servers_mutex_;
 
     std::map<std::string,               PowerStateEstimator::Type>               estimator_types_;
     std::map<PowerStateEstimator::Type, boost::shared_ptr<PowerStateEstimator> > estimators_;
 
     boost::shared_ptr<PowerStateEstimator> active_estimator_;
 
-    ros::Timer      pub_timer_;
-    ros::Publisher  pub_;
-    ros::Subscriber sub_;
+    ros::Timer      power_state_pub_timer_;
+    ros::Publisher  power_state_pub_;
+    ros::Subscriber battery_server_sub_;
+    ros::Subscriber power_node_sub_;
 
     PowerObservation observation_;
 };

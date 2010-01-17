@@ -71,8 +71,8 @@ protected:
     PowerObservation obs_;
 };
 
-/** A simple power state estimator which relies on the values reported by thebatteries themselves
-  * for the minimum & maximum time remaining and the minimum remaining capacity..
+/** A simple power state estimator which relies on the values reported by the batteries themselves
+  * for the minimum & maximum time remaining and the minimum remaining capacity.
   */
 class FuelGaugePowerStateEstimator : public PowerStateEstimator
 {
@@ -105,15 +105,16 @@ public:
 
     virtual void recordObservation(const PowerObservation& obs);
 
-protected:
+private:
+    static const std::string DEFAULT_LOG_FILE;
+
     static void tokenize(const std::string& str, std::vector<std::string>& tokens, const std::string& delimiters=",");
 
     bool logFileExists() const;
-    void readObservations(std::vector<LogRecord>& log);
+    bool readObservations(std::vector<LogRecord>& log);
     bool saveObservation(const PowerObservation& obs) const;
     bool hasEverDischarged() const;
 
-protected:
     std::vector<LogRecord> log_;
 
     std::string log_filename_;

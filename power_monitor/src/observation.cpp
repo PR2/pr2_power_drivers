@@ -49,7 +49,7 @@ PowerObservation::PowerObservation() { }
 
 PowerObservation::PowerObservation(const ros::Time& stamp, const vector<BatteryObservation>& batteries) : stamp_(stamp), batteries_(batteries) { }
 
-const ros::Time&                 PowerObservation::getStamp()     const { return stamp_;     }
+const ros::Time&                  PowerObservation::getStamp()     const { return stamp_;     }
 const vector<BatteryObservation>& PowerObservation::getBatteries() const { return batteries_; }
 
 unsigned int PowerObservation::getAcCount() const
@@ -71,6 +71,9 @@ float PowerObservation::getTotalPower() const
     return total_power;
 }
 
+/**
+  * Returns 9999.9 if no batteries observed.
+  */
 float PowerObservation::getMinVoltage() const
 {
     float min_voltage = 9999.9f;
@@ -80,6 +83,9 @@ float PowerObservation::getMinVoltage() const
     return min_voltage;
 }
 
+/**
+  * Returns 999 if no batteries observed.
+  */
 unsigned int PowerObservation::getMinRelativeStateOfCharge() const
 {
     unsigned int min_rsc = 999;
@@ -98,13 +104,21 @@ float PowerObservation::getTotalRemainingCapacity() const
     return rem_cap;
 }
 
+/**
+  * Returns ros::Duration(-1, 0) if all batteries are charging.
+  */
 ros::Duration PowerObservation::getMinTimeToEmpty(const ros::Time& t) const
 {
-    ros::Duration min_tte;
+    ros::Duration min_tte(-1, 0);
+
+    int count = 0;
 
     for (unsigned int i = 0; i < batteries_.size(); i++)
     {
         const BatteryObservation& b = batteries_[i];
+
+        if (b.isAcPresent())
+            continue;
 
         ros::Duration staleness = t - b.getStamp();
 
@@ -112,22 +126,32 @@ ros::Duration PowerObservation::getMinTimeToEmpty(const ros::Time& t) const
         if (staleness < b.getTimeToEmpty())
             tte = b.getTimeToEmpty() - staleness;
 
-        if (i == 0)
+        if (count == 0)
             min_tte = tte;
         else
             min_tte = min(min_tte, tte);
+
+        count++;
     }
 
     return min_tte;
 }
 
+/**
+  * Returns ros::Duration(-1, 0) if all no batteries are charging.
+  */
 ros::Duration PowerObservation::getMaxTimeToFull(const ros::Time& t) const
 {
-    ros::Duration max_ttf;
+    ros::Duration max_ttf(-1, 0);
+
+    int count = 0;
 
     for (unsigned int i = 0; i < batteries_.size(); i++)
     {
         const BatteryObservation& b = batteries_[i];
+
+        if (!b.isAcPresent())
+            continue;
 
         ros::Duration staleness = t - b.getStamp();
 
@@ -135,10 +159,12 @@ ros::Duration PowerObservation::getMaxTimeToFull(const ros::Time& t) const
         if (staleness < b.getTimeToFull())
             ttf = b.getTimeToFull() - staleness;
 
-        if (i == 0)
+        if (count == 0)
             max_ttf = ttf;
         else
             max_ttf = max(max_ttf, ttf);
+
+        count++;
     }
 
     return max_ttf;
