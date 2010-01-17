@@ -134,12 +134,15 @@ PowerStateEstimate AdvancedPowerStateEstimator::estimate(const ros::Time& t)
     if (log_.size() > 0 && obs_.getAcCount() == 0 && hasEverDischarged())
     {
         // Get the minimum remaining capacity reported ever
-        unsigned int min_rsc     = 999;
+        unsigned int min_rsc     = 100;
         float        min_rem_cap = 999999.9;
         for (vector<LogRecord>::const_iterator i = log_.begin(); i != log_.end(); i++)
         {
-            min_rsc     = min(min_rsc,     (*i).min_relative_state_of_charge);
-            min_rem_cap = min(min_rem_cap, (*i).total_remaining_capacity);
+	    if ((*i).master_state == pr2_msgs::PowerBoardState::MASTER_SHUTDOWN)
+	    {
+	        min_rsc     = min(min_rsc,     (*i).min_relative_state_of_charge);
+	        min_rem_cap = min(min_rem_cap, (*i).total_remaining_capacity);
+	    }
         }
 
         // @todo: should filter the noisy current
@@ -148,21 +151,22 @@ PowerStateEstimate AdvancedPowerStateEstimator::estimate(const ros::Time& t)
         float actual_rem_cap = obs_.getTotalRemainingCapacity() - min_rem_cap;
         float rem_hours      = actual_rem_cap / -current;
 
-        ROS_DEBUG("minimum reported remaining capacity: %f", min_rem_cap);
+	ROS_DEBUG("current reported relative state of charge: %d", obs_.getMinRelativeStateOfCharge());
+        ROS_DEBUG("minimum reported remaining capacity: %d", min_rem_cap);
         ROS_DEBUG("minimum reported relative state of charge: %d", min_rsc);
-        ROS_DEBUG("current: %f", current);
+        ROS_DEBUG("current: %.2f", current);
         ROS_DEBUG("report remaining capacity: %f", obs_.getTotalRemainingCapacity());
         ROS_DEBUG("time remaining: %.2f mins", rem_hours * 60);
 
         ps.time_remaining = ros::Duration(rem_hours * 60 * 60);
+	ps.relative_capacity = int(100 * (obs_.getMinRelativeStateOfCharge() - min_rsc) / (100.0 - min_rsc));
     }
     else
     {
         // No history. Resort to fuel gauge method
         ps.time_remaining = obs_.getAcCount() > 0 ? obs_.getMaxTimeToFull(t) : obs_.getMinTimeToEmpty(t);
+	ps.relative_capacity = obs_.getMinRelativeStateOfCharge();
     }
-
-    ps.relative_capacity = obs_.getMinRelativeStateOfCharge();
 
     return ps;
 }
