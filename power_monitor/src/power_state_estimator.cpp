@@ -82,7 +82,7 @@ AdvancedPowerStateEstimator::AdvancedPowerStateEstimator()
     ros::NodeHandle node;
 
     log_filename_ = DEFAULT_LOG_FILE;
-    node.getParam("/power_monitor/advanced_log_file", log_filename_);
+    node.getParam("advanced_log_file", log_filename_);
     ROS_INFO("Using log file: %s", log_filename_.c_str());
 
     readObservations(log_);
