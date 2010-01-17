@@ -269,7 +269,7 @@ bool AdvancedPowerStateEstimator::saveObservation(const PowerObservation& obs) c
         }
     }
 
-    // Write out the log file
+    // Open the log file for appending
     ofstream f(log_filename_.c_str(), ios::out | ios::app);
     if (f.fail())
     {
@@ -277,12 +277,13 @@ bool AdvancedPowerStateEstimator::saveObservation(const PowerObservation& obs) c
         return false;
     }
 
-    // Write the header if it doesn't exist
+    // Write the header if the file is new
     if (!exists)
         f << "secs,master_state,charging,total_power,min_voltage,min_relative_state_of_charge,total_remaining_capacity" << endl;
 
+    // Append the observation row
     f << obs.getStamp().sec << ","
-      << obs.getMasterState() << ","
+      << (int) obs.getMasterState() << ","
       << obs.getAcCount() << ","
       << obs.getTotalPower() << ","
       << obs.getMinVoltage() << ","

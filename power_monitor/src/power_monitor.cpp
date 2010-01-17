@@ -37,7 +37,7 @@
 using namespace std;
 using namespace power_monitor;
 
-PowerMonitor::PowerMonitor()
+PowerMonitor::PowerMonitor() : master_state_(-1)
 {
     ros::NodeHandle node("~");
 
@@ -106,7 +106,7 @@ bool PowerMonitor::setActiveEstimator(PowerStateEstimator::Type estimator_type)
     if (active_estimator_ == boost::shared_ptr<PowerStateEstimator>())
         ROS_INFO("Power state estimator set to %s", i->second->getMethodName().c_str());
     else
-        ROS_INFO("Power state estimator changed from %s to %s", i->second->getMethodName().c_str(), active_estimator_->getMethodName().c_str());
+        ROS_INFO("Power state estimator changed from %s to %s", active_estimator_->getMethodName().c_str(), i->second->getMethodName().c_str());
 
     active_estimator_ = i->second;
 
@@ -183,6 +183,9 @@ PowerObservation PowerMonitor::extractObservation()
             else
                 ttf = ros::Duration(-1, 0);
 
+	    if (voltage == 0.0 || current == 0.0)
+	        continue;
+
             batteries.push_back(BatteryObservation(stamp, ac_present, voltage, current, rsc, rem_cap, tte, ttf));
 
             ROS_DEBUG("Battery %d.%d: %6.2f V %6.2f A %6.2f W", bs->id, j + 1, voltage, current, current * voltage);
@@ -205,12 +208,11 @@ void PowerMonitor::publishPowerState()
     PowerObservation obs = extractObservation();
     if (obs.getBatteries().size() == 0)
     {
-        ROS_INFO("Nothing observed");
+        ROS_DEBUG("Nothing observed");
         return;
     }
 
-    ROS_INFO("Total power: %6.1f W", obs.getTotalPower());
-    ROS_INFO("Min voltage: %6.2f V", obs.getMinVoltage());
+    ROS_DEBUG("Power: %6.1f W. Min voltage: %6.2f V", obs.getTotalPower(), obs.getMinVoltage());
 
     // Give every estimator the chance to record this observation
     for (map<PowerStateEstimator::Type, boost::shared_ptr<PowerStateEstimator> >::const_iterator i = estimators_.begin(); i != estimators_.end(); i++)
@@ -221,8 +223,7 @@ void PowerMonitor::publishPowerState()
     if (active_estimator_->canEstimate(t))
     {
         PowerStateEstimate estimate = active_estimator_->estimate(t);
-        ROS_INFO("Time remaining: %.0f min", estimate.time_remaining.toSec() / 60);
-        ROS_INFO("Min capacity: %d%%",       estimate.relative_capacity);
+        ROS_DEBUG("Remaining: %.0f min (%d%%)", estimate.time_remaining.toSec() / 60, estimate.relative_capacity);
 
         // Publish the power state estimate
         pr2_msgs::PowerState ps;
