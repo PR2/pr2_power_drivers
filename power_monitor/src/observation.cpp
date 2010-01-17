@@ -47,10 +47,11 @@ using namespace power_monitor;
 
 PowerObservation::PowerObservation() { }
 
-PowerObservation::PowerObservation(const ros::Time& stamp, const vector<BatteryObservation>& batteries) : stamp_(stamp), batteries_(batteries) { }
+PowerObservation::PowerObservation(const ros::Time& stamp, int8_t master_state, const vector<BatteryObservation>& batteries) : stamp_(stamp), master_state_(master_state), batteries_(batteries) { }
 
-const ros::Time&                  PowerObservation::getStamp()     const { return stamp_;     }
-const vector<BatteryObservation>& PowerObservation::getBatteries() const { return batteries_; }
+const ros::Time&                  PowerObservation::getStamp()       const { return stamp_;        }
+int8_t                            PowerObservation::getMasterState() const { return master_state_; }
+const vector<BatteryObservation>& PowerObservation::getBatteries()   const { return batteries_;    }
 
 unsigned int PowerObservation::getAcCount() const
 {

@@ -39,6 +39,8 @@
 
 #include "ros/ros.h"
 
+#include "pr2_msgs/PowerBoardState.h"
+
 namespace power_monitor {
 
 class BatteryObservation;
@@ -50,10 +52,13 @@ class PowerObservation
 {
 public:
     PowerObservation();
-    PowerObservation(const ros::Time& stamp, const std::vector<BatteryObservation>& batteries);
+    PowerObservation(const ros::Time& stamp, int8_t master_state, const std::vector<BatteryObservation>& batteries);
 
     const ros::Time&                       getStamp() const;
+    int8_t                                 getMasterState() const;
     const std::vector<BatteryObservation>& getBatteries() const;
+
+    bool isShuttingDown() const;
 
     unsigned int  getAcCount() const;
     float         getTotalPower() const;
@@ -65,6 +70,7 @@ public:
 
 private:
     ros::Time                       stamp_;
+    int8_t                          master_state_;
     std::vector<BatteryObservation> batteries_;
 };
 

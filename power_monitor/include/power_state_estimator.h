@@ -90,6 +90,7 @@ public:
     struct LogRecord
     {
         uint32_t     sec;
+        int8_t       master_state;
         int          charging;
         float        total_power;
         float        min_voltage;

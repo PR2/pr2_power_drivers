@@ -74,11 +74,18 @@ private:
 
     void onPublishTimer(const ros::TimerEvent& e);
 
+    void publishPowerState();
+
+    std::string masterStateToString(int8_t master_state) const;
+
 private:
     dynamic_reconfigure::Server<power_monitor::PowerMonitorConfig> config_server_;
 
+    boost::mutex update_mutex_;
+    boost::mutex publish_mutex_;
+
+    int8_t master_state_;
     std::map<int, boost::shared_ptr<const pr2_msgs::BatteryServer2> > battery_servers_;
-    boost::mutex                                                      battery_servers_mutex_;
 
     std::map<std::string,               PowerStateEstimator::Type>               estimator_types_;
     std::map<PowerStateEstimator::Type, boost::shared_ptr<PowerStateEstimator> > estimators_;

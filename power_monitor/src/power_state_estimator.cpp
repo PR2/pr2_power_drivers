@@ -102,6 +102,7 @@ void AdvancedPowerStateEstimator::recordObservation(const PowerObservation& obs)
 
     LogRecord record;
     record.sec                          = obs.getStamp().sec;
+    record.master_state                 = obs.getMasterState();
     record.charging                     = obs.getAcCount();
     record.total_power                  = obs.getTotalPower();
     record.min_voltage                  = obs.getMinVoltage();
@@ -112,10 +113,17 @@ void AdvancedPowerStateEstimator::recordObservation(const PowerObservation& obs)
     saveObservation(obs);
 }
 
+/**
+ * Returns whether we've ever received a message that the power board is shutting down.
+ * If we have, then we can use the remaining capacity reported at that point to bias our prediction.
+ */
 bool AdvancedPowerStateEstimator::hasEverDischarged() const
 {
-    // @todo: implement
-    return true;
+    for (vector<LogRecord>::const_iterator i = log_.begin(); i != log_.end(); i++)
+        if ((*i).master_state == pr2_msgs::PowerBoardState::MASTER_SHUTDOWN)
+            return true;
+
+    return false;
 }
 
 PowerStateEstimate AdvancedPowerStateEstimator::estimate(const ros::Time& t)
@@ -140,17 +148,17 @@ PowerStateEstimate AdvancedPowerStateEstimator::estimate(const ros::Time& t)
         float actual_rem_cap = obs_.getTotalRemainingCapacity() - min_rem_cap;
         float rem_hours      = actual_rem_cap / -current;
 
-        ROS_INFO("minimum reported remaining capacity: %f", min_rem_cap);
-        ROS_INFO("minimum reported relative state of charge: %d", min_rsc);
-        ROS_INFO("current: %f", current);
-        ROS_INFO("report remaining capacity: %f", obs_.getTotalRemainingCapacity());
-        ROS_INFO("time remaining: %.2f mins", rem_hours * 60);
+        ROS_DEBUG("minimum reported remaining capacity: %f", min_rem_cap);
+        ROS_DEBUG("minimum reported relative state of charge: %d", min_rsc);
+        ROS_DEBUG("current: %f", current);
+        ROS_DEBUG("report remaining capacity: %f", obs_.getTotalRemainingCapacity());
+        ROS_DEBUG("time remaining: %.2f mins", rem_hours * 60);
 
         ps.time_remaining = ros::Duration(rem_hours * 60 * 60);
     }
     else
     {
-        // No history. Resort to simplistic
+        // No history. Resort to fuel gauge method
         ps.time_remaining = obs_.getAcCount() > 0 ? obs_.getMaxTimeToFull(t) : obs_.getMinTimeToEmpty(t);
     }
 
@@ -208,7 +216,7 @@ bool AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
         vector<string> tokens;
         tokenize(line, tokens, ",");
 
-        if (tokens.size() != 6)
+        if (tokens.size() != 7)
         {
             ROS_WARN("Invalid line %d in log file: %s.  Aborting read.", line_num, log_filename_.c_str());
             break;
@@ -216,11 +224,12 @@ bool AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
 
         LogRecord record;
         record.sec                          = boost::lexical_cast<uint32_t>(tokens[0]);
-        record.charging                     = boost::lexical_cast<int>(tokens[1]);
-        record.total_power                  = boost::lexical_cast<float>(tokens[2]);
-        record.min_voltage                  = boost::lexical_cast<float>(tokens[3]);
-        record.min_relative_state_of_charge = boost::lexical_cast<unsigned int>(tokens[4]);
-        record.total_remaining_capacity     = boost::lexical_cast<float>(tokens[5]);
+        record.master_state                 = boost::lexical_cast<int>(tokens[1]);
+        record.charging                     = boost::lexical_cast<int>(tokens[2]);
+        record.total_power                  = boost::lexical_cast<float>(tokens[3]);
+        record.min_voltage                  = boost::lexical_cast<float>(tokens[4]);
+        record.min_relative_state_of_charge = boost::lexical_cast<unsigned int>(tokens[5]);
+        record.total_remaining_capacity     = boost::lexical_cast<float>(tokens[6]);
         log.push_back(record);
 
         line_num++;
@@ -270,9 +279,10 @@ bool AdvancedPowerStateEstimator::saveObservation(const PowerObservation& obs) c
 
     // Write the header if it doesn't exist
     if (!exists)
-        f << "secs,charging,total_power,min_voltage,min_relative_state_of_charge,total_remaining_capacity" << endl;
+        f << "secs,master_state,charging,total_power,min_voltage,min_relative_state_of_charge,total_remaining_capacity" << endl;
 
     f << obs.getStamp().sec << ","
+      << obs.getMasterState() << ","
       << obs.getAcCount() << ","
       << obs.getTotalPower() << ","
       << obs.getMinVoltage() << ","

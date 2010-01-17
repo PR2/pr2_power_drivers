@@ -64,7 +64,7 @@ PowerMonitor::PowerMonitor()
     // Set the active estimation method
     if (estimator_types_.size() == 0)
     {
-        ROS_FATAL("No power state estimators defined");
+        ROS_FATAL("No power state estimators defined. Shutting down");
         exit(1);
     }
     map<string, PowerStateEstimator::Type>::const_iterator i = estimator_types_.find(estimator_type_str);
@@ -103,30 +103,51 @@ bool PowerMonitor::setActiveEstimator(PowerStateEstimator::Type estimator_type)
     if (active_estimator_ == i->second)
         return true;
 
-    active_estimator_ = i->second;
+    ROS_INFO("Power state estimator changed from %s to %s", i->second->getMethodName().c_str(), active_estimator_->getMethodName().c_str());
 
-    ROS_INFO("Power state estimator set to %s", active_estimator_->getMethodName().c_str());
+    active_estimator_ = i->second;
 
     return true;
 }
 
 void PowerMonitor::batteryServerUpdate(const boost::shared_ptr<const pr2_msgs::BatteryServer2>& battery_server)
 {
-    boost::mutex::scoped_lock lock(battery_servers_mutex_);
+    boost::mutex::scoped_lock lock(update_mutex_);
 
-    ROS_INFO("Received battery message: voltage=%.2f", battery_server->battery[0].battery_register[0x9] / 1000.0f);
+    ROS_DEBUG("Received battery message: voltage=%.2f", battery_server->battery[0].battery_register[0x9] / 1000.0f);
 
     battery_servers_[battery_server->id] = battery_server;
 }
 
 void PowerMonitor::powerNodeUpdate(const boost::shared_ptr<const pr2_msgs::PowerBoardState>& power_board_state)
 {
-    ROS_INFO("Received power board state message");
+    boost::mutex::scoped_lock lock(update_mutex_);
+
+    ROS_DEBUG("Received power board state message: %s", masterStateToString(power_board_state->master_state).c_str());
+
+    master_state_ = power_board_state->master_state;
+
+    // Publish the power state immediately if we're shutting down. Want to ensure we record these data points.
+    if (master_state_ == pr2_msgs::PowerBoardState::MASTER_SHUTDOWN)
+        publishPowerState();
+}
+
+string PowerMonitor::masterStateToString(int8_t master_state) const
+{
+    switch (master_state)
+    {
+        case pr2_msgs::PowerBoardState::MASTER_NOPOWER:  return "No Power";
+        case pr2_msgs::PowerBoardState::MASTER_STANDBY:  return "Standby";
+        case pr2_msgs::PowerBoardState::MASTER_ON:       return "On";
+        case pr2_msgs::PowerBoardState::MASTER_OFF:      return "Off";
+        case pr2_msgs::PowerBoardState::MASTER_SHUTDOWN: return "Shutdown";
+        default:                                         return "Unknown";
+    }
 }
 
 PowerObservation PowerMonitor::extractObservation()
 {
-    boost::mutex::scoped_lock lock(battery_servers_mutex_);
+    boost::mutex::scoped_lock lock(update_mutex_);
 
     vector<BatteryObservation> batteries;
     for (map<int, boost::shared_ptr<const pr2_msgs::BatteryServer2> >::iterator i = battery_servers_.begin(); i != battery_servers_.end(); i++)
@@ -165,11 +186,18 @@ PowerObservation PowerMonitor::extractObservation()
         }
     }
 
-    return PowerObservation(ros::Time::now(), batteries);
+    return PowerObservation(ros::Time::now(), master_state_, batteries);
 }
 
 void PowerMonitor::onPublishTimer(const ros::TimerEvent& e)
 {
+    publishPowerState();
+}
+
+void PowerMonitor::publishPowerState()
+{
+    boost::mutex::scoped_lock lock(publish_mutex_);
+
     // Extract info from the battery server
     PowerObservation obs = extractObservation();
     if (obs.getBatteries().size() == 0)
