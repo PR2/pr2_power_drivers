@@ -74,8 +74,6 @@ private:
 
     void onPublishTimer(const ros::TimerEvent& e);
 
-    static float toFloat(int value);
-
 private:
     dynamic_reconfigure::Server<power_monitor::PowerMonitorConfig> config_server_;
 

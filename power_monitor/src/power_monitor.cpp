@@ -44,7 +44,7 @@ PowerMonitor::PowerMonitor()
     string battery_server_topic = "/battery/server2";
     string power_board_node     = "/power_board";
     string estimator_type_str   = "fuel gauge";
-    double freq                 = 0.1;
+    double freq                 = 0.2;
 
     node.getParam("battery_server_topic", battery_server_topic);
     node.getParam("power_board_node",     power_board_node);
@@ -78,7 +78,7 @@ PowerMonitor::PowerMonitor()
     else
         setActiveEstimator(i->second);
 
-    power_state_pub_       = node.advertise<pr2_msgs::PowerState>("power_state", 5);
+    power_state_pub_       = node.advertise<pr2_msgs::PowerState>("/power_state", 5);
     power_state_pub_timer_ = node.createTimer(ros::Duration(1.0 / freq), &PowerMonitor::onPublishTimer, this);
     battery_server_sub_    = node.subscribe(battery_server_topic, 10, &PowerMonitor::batteryServerUpdate, this);
     power_node_sub_        = node.subscribe(node.resolveName(power_board_node) + "/state", 10, &PowerMonitor::powerNodeUpdate, this);
@@ -114,7 +114,7 @@ void PowerMonitor::batteryServerUpdate(const boost::shared_ptr<const pr2_msgs::B
 {
     boost::mutex::scoped_lock lock(battery_servers_mutex_);
 
-    ROS_INFO("Received battery message: voltage=%.2f", toFloat(battery_server->battery[0].battery_register[0x9]));
+    ROS_INFO("Received battery message: voltage=%.2f", battery_server->battery[0].battery_register[0x9] / 1000.0f);
 
     battery_servers_[battery_server->id] = battery_server;
 }
@@ -140,8 +140,8 @@ PowerObservation PowerMonitor::extractObservation()
             const pr2_msgs::BatteryState2& b = bs->battery[j];
 
             bool         ac_present = b.power_present;
-            float        voltage    = toFloat(b.battery_register[0x9]);
-            float        current    = toFloat(b.battery_register[0xA]);
+            float        voltage    = b.battery_register[0x9] / 1000.0f;
+            float        current    = b.battery_register[0xA] / 1000.0f;
             unsigned int rsc        = b.battery_register[0x0D];
             float        rem_cap    = b.battery_register[0x0F] / 1000.0f;
             unsigned int tte_min    = b.battery_register[0x12];
@@ -161,7 +161,7 @@ PowerObservation PowerMonitor::extractObservation()
 
             batteries.push_back(BatteryObservation(stamp, ac_present, voltage, current, rsc, rem_cap, tte, ttf));
 
-            ROS_INFO("Battery %d.%d: %6.2f V %6.2f A %6.2f W", bs->id, j + 1, voltage, current, current * voltage);
+            ROS_DEBUG("Battery %d.%d: %6.2f V %6.2f A %6.2f W", bs->id, j + 1, voltage, current, current * voltage);
         }
     }
 
@@ -203,14 +203,6 @@ void PowerMonitor::onPublishTimer(const ros::TimerEvent& e)
         ps.time_remaining    = estimate.time_remaining;
         power_state_pub_.publish(ps);
     }
-}
-
-float PowerMonitor::toFloat(int value)
-{
-    int tmp = value;
-    if (tmp & 0x8000)
-        tmp -= 65536;
-    return tmp / 1000.0f;
 }
 
 int main(int argc, char** argv)

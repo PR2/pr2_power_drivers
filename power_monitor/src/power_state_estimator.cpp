@@ -86,7 +86,7 @@ AdvancedPowerStateEstimator::AdvancedPowerStateEstimator()
     ROS_INFO("Using log file: %s", log_filename_.c_str());
 
     readObservations(log_);
-    ROS_INFO("Read %d observations", log_.size());
+    ROS_INFO("Read %d observations", (int) log_.size());
 }
 
 string                    AdvancedPowerStateEstimator::getMethodName() const { return "advanced"; }
