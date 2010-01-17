@@ -44,7 +44,7 @@ PowerMonitor::PowerMonitor()
     string battery_server_topic = "/battery/server2";
     string power_board_node     = "/power_board";
     string estimator_type_str   = "fuel gauge";
-    double freq                 = 0.2;
+    double freq                 = 0.1;
 
     node.getParam("battery_server_topic", battery_server_topic);
     node.getParam("power_board_node",     power_board_node);
@@ -103,7 +103,10 @@ bool PowerMonitor::setActiveEstimator(PowerStateEstimator::Type estimator_type)
     if (active_estimator_ == i->second)
         return true;
 
-    ROS_INFO("Power state estimator changed from %s to %s", i->second->getMethodName().c_str(), active_estimator_->getMethodName().c_str());
+    if (active_estimator_ == boost::shared_ptr<PowerStateEstimator>())
+        ROS_INFO("Power state estimator set to %s", i->second->getMethodName().c_str());
+    else
+        ROS_INFO("Power state estimator changed from %s to %s", i->second->getMethodName().c_str(), active_estimator_->getMethodName().c_str());
 
     active_estimator_ = i->second;
 

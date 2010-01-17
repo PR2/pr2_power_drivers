@@ -58,8 +58,6 @@ public:
     int8_t                                 getMasterState() const;
     const std::vector<BatteryObservation>& getBatteries() const;
 
-    bool isShuttingDown() const;
-
     unsigned int  getAcCount() const;
     float         getTotalPower() const;
     float         getMinVoltage() const;
