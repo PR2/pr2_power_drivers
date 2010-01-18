@@ -61,7 +61,7 @@ class PowerBoardPanel(wx.Panel):
 
         serialBoxSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.myList = wx.ComboBox(self, -1, size=(150,30), style=wx.CB_READONLY)
-        self.Bind(wx.EVT_COMBOBOX, self.chooseBoard)
+        self.Bind(wx.EVT_COMBOBOX, lambda e: self.chooseBoard(self.myList.GetValue()))
         serialBoxSizer.Add( wx.StaticText( self, -1, "Board ") )
         serialBoxSizer.Add( self.myList )
         serialBoxSizer.Add( wx.StaticText( self, -1, "Serial ") )
@@ -125,29 +125,34 @@ class PowerBoardPanel(wx.Panel):
         self.myList.SetValue("none")
         self.currentBoard = "none"
 
-    def chooseBoard(self, event):
+    def chooseBoard(self, board):
         #rospy.logerr("choose: %s" %self.myList.GetValue())
-        self.currentBoard = self.myList.GetValue()
+        self.currentBoard = board
         self.serialText.Clear()
         self.serialText.WriteText( str(self.boardList[self.currentBoard]) )    
 
     def addBoard( self, status ):
-        name = status.name
+        name = str(status.name)
         serial = int(0)
         for strvals in status.values:
             if (strvals.key == "Serial Number"):
                 serial = int(strvals.value)
         rospy.logerr("Adding: %s serial=%d" %(name,serial))
-        self.myList.Append(str(name));
+        self.myList.Append(name);
         self.boardList[name] = serial
+        
+        if self.myList.Count == 1:
+            self.myList.SetSelection(0)
+            self.chooseBoard(name)
 
     def diagnostics_callback(self, message):
-        self._mutex.acquire()
-        
+        try:
+            self._mutex.acquire()
+        except:
+            return
         self._messages.append(message)
-        
         self._mutex.release()
-        
+            
         wx.CallAfter(self.new_message)
         
     def new_message(self):

@@ -39,49 +39,67 @@
 #include <boost/thread/mutex.hpp>
 
 #include "ros/ros.h"
+#include "dynamic_reconfigure/server.h"
+
+#include "pr2_msgs/BatteryServer2.h"
+#include "pr2_msgs/PowerBoardState.h"
 #include "pr2_msgs/PowerState.h"
-#include "pr2_msgs/BatteryServer.h"
+
+#include "power_monitor/PowerMonitorConfig.h"
 
 #include "power_state_estimator.h"
 
-namespace ros
-{
+namespace power_monitor {
 
 /**
- * This class listens to BatteryServer2 messages and publishes PowerState messages with an estimates of
- * the time remaining either to discharge completely or charging completely.
+ * This class listens to BatteryServer2 and PowerBoardState messages and publishes PowerState messages with
+ * estimates of the time remaining until the robot switches off (if discharging) or until the robot is fully
+ * charged (if charging).
  */
 class PowerMonitor
 {
 public:
     PowerMonitor();
 
-    void setPowerStateEstimator(boost::shared_ptr<PowerStateEstimator> estimator);
+    bool setActiveEstimator(PowerStateEstimator::Type estimator_type);
 
-    void batteryServerUpdate(const boost::shared_ptr<const pr2_msgs::BatteryServer>& bat);
+    void batteryServerUpdate(const boost::shared_ptr<const pr2_msgs::BatteryServer2>& battery_server);
+    void powerNodeUpdate(const boost::shared_ptr<const pr2_msgs::PowerBoardState>& power_board_state);
+    void configCallback(power_monitor::PowerMonitorConfig& config, uint32_t level);
 
 private:
-    ros::PowerObservable extractPowerObservable();
+    void addEstimator(PowerStateEstimator* estimator);
 
-    static float toFloat(int value);
+    PowerObservation extractObservation();
 
     void onPublishTimer(const ros::TimerEvent& e);
 
+    void publishPowerState();
+
+    std::string masterStateToString(int8_t master_state) const;
+
 private:
-    std::map<int, boost::shared_ptr<const pr2_msgs::BatteryServer> > battery_servers_;
-    boost::mutex                                                     battery_servers_mutex_;
+    dynamic_reconfigure::Server<power_monitor::PowerMonitorConfig> config_server_;
 
-    ros::Timer      pub_timer_;
-    ros::Publisher  pub_;
-    ros::Subscriber sub_;
+    boost::mutex update_mutex_;
+    boost::mutex publish_mutex_;
 
-    ros::PowerObservable power_observable_;
+    int8_t master_state_;
+    std::map<int, boost::shared_ptr<const pr2_msgs::BatteryServer2> > battery_servers_;
 
-    boost::shared_ptr<PowerStateEstimator> power_state_estimator_;
+    std::map<std::string,               PowerStateEstimator::Type>               estimator_types_;
+    std::map<PowerStateEstimator::Type, boost::shared_ptr<PowerStateEstimator> > estimators_;
 
-    pr2_msgs::PowerState power_state_;
+    boost::shared_ptr<PowerStateEstimator> active_estimator_;
+
+    ros::Timer      power_state_pub_timer_;
+    ros::Publisher  power_state_pub_;
+    ros::Subscriber battery_server_sub_;
+    ros::Subscriber power_node_sub_;
+
+    PowerObservation observation_;
 };
 
 }
 
-#endif
+#endif /* POWER_MONITOR_POWER_MONITOR_H */

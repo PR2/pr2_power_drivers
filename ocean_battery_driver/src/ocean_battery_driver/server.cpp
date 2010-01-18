@@ -23,6 +23,8 @@ using namespace ros;
 using namespace willowgarage::ocean;
 namespace po = boost::program_options;
 
+static const float BATTERY_TEMP_WARN = 45.0;
+
 float toFloat(const int &value)
 {
   int tmp = value;
@@ -104,8 +106,8 @@ class server
       //  concern that one message it quickly replaced by another threads message.
       //
       ros::Publisher pub    = handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 10);
-      ros::Publisher bs2    = handle.advertise<pr2_msgs::BatteryServer2>("/battery/server2", 10);
-      ros::Publisher bs     = handle.advertise<pr2_msgs::BatteryServer>("/battery/server", 10);
+      ros::Publisher bs2    = handle.advertise<pr2_msgs::BatteryServer2>("battery/server2", 10);
+      ros::Publisher bs     = handle.advertise<pr2_msgs::BatteryServer>("battery/server", 10);
 
       ros::Rate rate(100);   //set the rate we scan the device for input
       diagnostic_msgs::DiagnosticArray msg_out;
@@ -130,12 +132,7 @@ class server
         {
 
           // First publish our internal data
-
-          // FIX ME:
-          // Setting time to currentTime before publishing.  This may
-          // not be correct, but at least gets rid of deprecationg
-          // warning.
-          os.server.header.stamp = currentTime;
+          os.server.header.stamp = ros::Time::now();
           bs2.publish(os.server);
 
           oldserver.id = os.server.id;
@@ -163,11 +160,7 @@ class server
             }
           }
 
-          // FIX ME:
-          // Setting time to currentTime before publishing.  This may
-          // not be correct, but at least gets rid of deprecationg
-          // warning.
-          oldserver.header.stamp = currentTime;
+          oldserver.header.stamp = ros::Time::now();
           bs.publish(oldserver);
 
           lastTime = currentTime;
@@ -185,11 +178,7 @@ class server
           Duration elapsed = currentTime - os.server.last_system_update;
           stat.add("Time since update (s)", elapsed.toSec());
 
-          // FIX ME:
-          // Setting time to currentTime before publishing.  This may
-          // not be correct, but at least gets rid of deprecationg
-          // warning.
-          msg_out.header.stamp = currentTime;
+          msg_out.header.stamp = ros::Time::now();
           msg_out.status.push_back(stat);
 
           for(int xx = 0; xx < os.server.MAX_BAT_COUNT; ++xx)
@@ -204,12 +193,12 @@ class server
               stat.level = 0;
               stat.message = "OK";
             
-              stat.add("charging", (os.server.battery[xx].charging) ? "True":"False");
-              stat.add("discharging", (os.server.battery[xx].discharging) ? "True":"False");
-              stat.add("power present", (os.server.battery[xx].power_present) ? "True":"False");
+              stat.add("Charging", (os.server.battery[xx].charging) ? "True":"False");
+              stat.add("Discharging", (os.server.battery[xx].discharging) ? "True":"False");
+              stat.add("Power Present", (os.server.battery[xx].power_present) ? "True":"False");
               stat.add("No Good", (os.server.battery[xx].power_no_good) ? "True":"False");
-              stat.add("charge inhibited", (os.server.battery[xx].inhibited) ? "True":"False");
-
+              stat.add("Charge Inhibited", (os.server.battery[xx].inhibited) ? "True":"False");
+	      
               for(unsigned int yy = 0; yy < os.regListLength; ++yy)
               {
                 unsigned addr = os.regList[yy].address;
@@ -220,7 +209,47 @@ class server
                     ss << os.regList[yy].name << " (" << os.regList[yy].unit << ")";
                   else
                     ss << os.regList[yy].name;
-                  stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
+                  
+                  if(addr == 0x1b)  //Address of manufactureDate
+                  {
+                    std::stringstream date;
+                    date.str("");
+
+                    unsigned int day = os.server.battery[xx].battery_register[addr] & 0x1F;
+                    unsigned int month = (os.server.battery[xx].battery_register[addr] >> 5) & 0xF;
+                    unsigned int year = (os.server.battery[xx].battery_register[addr] >> 9) + 1980;
+                    date << month << "/" << day << "/" << year;
+                    
+                    stat.add("Manufacture Date (MDY)", date.str());
+                  }
+                  else if(addr == 0x8)  //Address of Temperature
+                  {
+                    int iKelvin = os.server.battery[xx].battery_register[addr];
+                    float fKelvin = (float) (iKelvin * 0.1);
+                    float celsius = fKelvin - (float) 273.15;
+                    if(celsius > BATTERY_TEMP_WARN)
+                    {
+                      ostringstream warn;
+                      stat.level = 1;
+                      warn << "High Temperature Warning > " << BATTERY_TEMP_WARN << "C";
+                      stat.message = warn.str();
+                    }
+
+                    stat.add( "Temperature (C)", celsius);
+                  }
+                  else if(addr == 0x1c) // Serial Number
+                  {
+                    stat.add("Serial Number", os.server.battery[xx].battery_register[addr]);
+
+                    std::stringstream hw_id;
+                    hw_id << os.server.battery[xx].battery_register[addr];
+
+                    stat.hardware_id = hw_id.str();
+                  }
+                  else
+                  {
+                      stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
+                  }
                 }
               }
 

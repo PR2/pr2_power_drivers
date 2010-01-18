@@ -306,7 +306,7 @@ int PowerBoard::send_command(unsigned int serial_number, int circuit_breaker, co
   }
 
   if ((selected_device < 0) || (selected_device >= (int)Devices.size())) {
-    fprintf(stderr, "Device number must be between 0 and %u\n", Devices.size()-1);
+    fprintf(stderr, "Device number must be between 0 and %u\n", (int)Devices.size()-1);
     return -1;
   }
 
@@ -382,7 +382,7 @@ int PowerBoard::send_command(unsigned int serial_number, int circuit_breaker, co
       return -1;
     } else if (result != sizeof(cmdmsg)) {
       ROS_WARN("Error sending : send only took %d of %d bytes\n",
-              result, sizeof(cmdmsg));
+              result, (int)sizeof(cmdmsg));
     }
   }
 
@@ -424,6 +424,8 @@ const char* PowerBoard::master_state_to_str(char state)
     return "on";
   case MASTER_OFF:
     return "off";
+  case MASTER_SHUTDOWN:
+    return "shutdown";
   }
   return "???";
 }
@@ -652,7 +654,7 @@ void PowerBoard::init()
   service = node_handle.advertiseService("control", &PowerBoard::commandCallback, this);
 
   diags_pub = node_handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
-  state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("state", 2);
+  state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("state", 2, true);
 }
 
 
@@ -859,6 +861,7 @@ void PowerBoard::sendMessages()
       state_msg.circuit_voltage[0] = status->CB0_voltage;
       state_msg.circuit_voltage[1] = status->CB1_voltage;
       state_msg.circuit_voltage[2] = status->CB2_voltage;
+      state_msg.master_state = status->DCDC_state;
       state_msg.circuit_state[0] = status->CB0_state;
       state_msg.circuit_state[1] = status->CB1_state;
       state_msg.circuit_state[2] = status->CB2_state;
@@ -937,12 +940,12 @@ int CreateAllInterfaces(void)
             (strncmp("tun", get_io.ifc_req[yy].ifr_name, 3) == 0) ||
             (strncmp("vmnet", get_io.ifc_req[yy].ifr_name, 5) == 0))
         {
-          ROS_INFO("Ignoring interface %*s",strlen(get_io.ifc_req[yy].ifr_name), get_io.ifc_req[yy].ifr_name);
+          ROS_INFO("Ignoring interface %*s", (int)strlen(get_io.ifc_req[yy].ifr_name), get_io.ifc_req[yy].ifr_name);
           continue;
         }
         else
         {
-          ROS_INFO("Found interface    %*s",strlen(get_io.ifc_req[yy].ifr_name), get_io.ifc_req[yy].ifr_name);
+          ROS_INFO("Found interface    %*s", (int)strlen(get_io.ifc_req[yy].ifr_name), get_io.ifc_req[yy].ifr_name);
           Interface *newInterface = new Interface(get_io.ifc_req[yy].ifr_name);
           assert(newInterface != NULL);
           if (newInterface == NULL)
@@ -962,7 +965,7 @@ int CreateAllInterfaces(void)
 
               if (newInterface->Init(addr, br_addr))
               {
-                ROS_ERROR("Error initializing interface %*s", sizeof(get_io.ifc_req[yy].ifr_name), get_io.ifc_req[yy].ifr_name);
+                ROS_ERROR("Error initializing interface %*s",  (int)sizeof(get_io.ifc_req[yy].ifr_name), get_io.ifc_req[yy].ifr_name);
                 delete newInterface;
                 newInterface = NULL;
                 continue;

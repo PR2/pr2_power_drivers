@@ -315,7 +315,7 @@ int PowerBoard::send_command( int circuit_breaker, const std::string &command, u
     ROS_ERROR("Error sending");
     return -1;
   } else if (result != sizeof(cmdmsg)) {
-    ROS_WARN("Error sending : send only took %d of %d bytes\n",
+    ROS_WARN("Error sending : send only took %d of %lu bytes\n",
             result, sizeof(cmdmsg));
   }
 
@@ -356,6 +356,8 @@ const char* PowerBoard::master_state_to_str(char state)
     return "on";
   case MASTER_OFF:
     return "off";
+  case MASTER_SHUTDOWN:
+    return "shutdown";
   }
   return "???";
 }
@@ -541,7 +543,7 @@ void PowerBoard::init()
   service2 = node_handle.advertiseService("control2", &PowerBoard::commandCallback2, this);
 
   diags_pub = node_handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
-  state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("state", 2);
+  state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("state", 2, true);
 }
 
 bool PowerBoard::commandCallback(pr2_power_board::PowerBoardCommand::Request &req_,
@@ -763,6 +765,7 @@ void PowerBoard::sendMessages()
       state_msg.circuit_voltage[0] = status->CB0_voltage;
       state_msg.circuit_voltage[1] = status->CB1_voltage;
       state_msg.circuit_voltage[2] = status->CB2_voltage;
+      state_msg.master_state = status->DCDC_state;
       state_msg.circuit_state[0] = status->CB0_state;
       state_msg.circuit_state[1] = status->CB1_state;
       state_msg.circuit_state[2] = status->CB2_state;
@@ -792,7 +795,7 @@ int PowerBoard::requestMessage(const unsigned int message)
     ROS_ERROR("Error sending");
     return -1;
   } else if (result != sizeof(cmdmsg)) {
-    ROS_WARN("Error sending : send only took %d of %d bytes\n", result, sizeof(cmdmsg));
+    ROS_WARN("Error sending : send only took %d of %lu bytes\n", result, sizeof(cmdmsg));
   }
 
   ROS_DEBUG("requestMessage: to Serial=%u, revision=%u", cmdmsg.header.serial_num, cmdmsg.header.message_revision);

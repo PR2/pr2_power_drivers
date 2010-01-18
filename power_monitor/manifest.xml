@@ -6,14 +6,13 @@
      friendlier message format.
 
   </description>
-  <author>Curt Meyers</author>
+  <author>Tim Field, Curt Meyers</author>
   <license>BSD</license>
-  <review status="unreviewed" notes=""/>
+  <review status="Doc reviewed" notes="Dec 2009"/>
   <url>http://www.ros.org/wiki/power_monitor</url>
   <depend package="roscpp"/>
   <depend package="std_msgs"/>
   <depend package="pr2_msgs"/>
+  <depend package="dynamic_reconfigure"/>
 
 </package>
-
-

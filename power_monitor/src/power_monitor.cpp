@@ -34,114 +34,213 @@
 
 #include "power_monitor.h"
 
-#include <stdlib.h>
-#include <boost/thread/mutex.hpp>
-
-#include "ros/ros.h"
-#include "pr2_msgs/PowerState.h"
-#include "pr2_msgs/BatteryServer.h"
-
 using namespace std;
+using namespace power_monitor;
 
-ros::PowerMonitor::PowerMonitor()
+PowerMonitor::PowerMonitor() : master_state_(-1)
 {
-    ros::NodeHandle node;
+    ros::NodeHandle node("~");
 
-    double freq = 0.1;
-    node.getParam("/power_monitor/frequency", freq);
+    string battery_server_topic = "/battery/server2";
+    string power_board_node     = "/power_board";
+    string estimator_type_str   = "advanced";
+    double freq                 = 0.1;
 
-    pub_       = node.advertise<pr2_msgs::PowerState>("power_state", 5);
-    pub_timer_ = node.createTimer(ros::Duration(1 / freq), &PowerMonitor::onPublishTimer, this);
+    node.getParam("battery_server_topic", battery_server_topic);
+    node.getParam("power_board_node",     power_board_node);
+    node.getParam("estimation_method",    estimator_type_str);
+    node.getParam("frequency",            freq);
 
-    sub_ = node.subscribe("battery/server", 10, &PowerMonitor::batteryServerUpdate, this);
+    ros::Duration(2).sleep();
 
-    power_state_estimator_ = boost::shared_ptr<PowerStateEstimator>(new FuelGaugePowerStateEstimator());
+    // Register the estimators
+    addEstimator(new FuelGaugePowerStateEstimator());
+    addEstimator(new AdvancedPowerStateEstimator());
+
+    // Setup the dynamic_reconfigure callback
+    dynamic_reconfigure::Server<PowerMonitorConfig>::CallbackType config_callback = boost::bind(&PowerMonitor::configCallback, this, _1, _2);
+    config_server_.setCallback(config_callback);
+
+    // Set the active estimation method
+    if (estimator_types_.size() == 0)
+    {
+        ROS_FATAL("No power state estimators defined. Shutting down");
+        exit(1);
+    }
+    map<string, PowerStateEstimator::Type>::const_iterator i = estimator_types_.find(estimator_type_str);
+    if (i == estimator_types_.end())
+    {
+        // Request estimator is unknown. Default to first estimator
+        string first_estimator_type_str = estimator_types_.begin()->first;
+        ROS_ERROR("Unknown power state estimator type: %s. Defaulting to %s", estimator_type_str.c_str(), first_estimator_type_str.c_str());
+        setActiveEstimator(estimator_types_.begin()->second);
+    }
+    else
+        setActiveEstimator(i->second);
+
+    power_state_pub_       = node.advertise<pr2_msgs::PowerState>("/power_state", 5);
+    power_state_pub_timer_ = node.createTimer(ros::Duration(1.0 / freq), &PowerMonitor::onPublishTimer, this);
+    battery_server_sub_    = node.subscribe(battery_server_topic, 10, &PowerMonitor::batteryServerUpdate, this);
+    power_node_sub_        = node.subscribe(node.resolveName(power_board_node) + "/state", 10, &PowerMonitor::powerNodeUpdate, this);
 }
 
-void ros::PowerMonitor::setPowerStateEstimator(boost::shared_ptr<PowerStateEstimator> estimator)
+void PowerMonitor::addEstimator(PowerStateEstimator* est)
 {
-    power_state_estimator_ = estimator;
+    estimator_types_[est->getMethodName()] = est->getMethodType();
+    estimators_[est->getMethodType()] = boost::shared_ptr<PowerStateEstimator>(est);
 }
 
-void ros::PowerMonitor::batteryServerUpdate(const boost::shared_ptr<const pr2_msgs::BatteryServer>& battery_server)
+void PowerMonitor::configCallback(PowerMonitorConfig& config, uint32_t level)
 {
-    boost::mutex::scoped_lock lock(battery_servers_mutex_);
+    setActiveEstimator((PowerStateEstimator::Type) config.power_state_estimator_);
+}
 
-    ROS_DEBUG("Received battery message: voltage=%.2f", toFloat(battery_server->battery[0].batReg[0x9]));
+bool PowerMonitor::setActiveEstimator(PowerStateEstimator::Type estimator_type)
+{
+    map<PowerStateEstimator::Type, boost::shared_ptr<PowerStateEstimator> >::const_iterator i = estimators_.find(estimator_type);
+    if (i == estimators_.end())
+        return false;
+    if (active_estimator_ == i->second)
+        return true;
+
+    if (active_estimator_ == boost::shared_ptr<PowerStateEstimator>())
+        ROS_INFO("Power state estimator set to %s", i->second->getMethodName().c_str());
+    else
+        ROS_INFO("Power state estimator changed from %s to %s", active_estimator_->getMethodName().c_str(), i->second->getMethodName().c_str());
+
+    active_estimator_ = i->second;
+
+    return true;
+}
+
+void PowerMonitor::batteryServerUpdate(const boost::shared_ptr<const pr2_msgs::BatteryServer2>& battery_server)
+{
+    boost::mutex::scoped_lock lock(update_mutex_);
+
+    ROS_DEBUG("Received battery message: voltage=%.2f", battery_server->battery[0].battery_register[0x9] / 1000.0f);
 
     battery_servers_[battery_server->id] = battery_server;
 }
 
-ros::PowerObservable ros::PowerMonitor::extractPowerObservable()
+void PowerMonitor::powerNodeUpdate(const boost::shared_ptr<const pr2_msgs::PowerBoardState>& power_board_state)
 {
-    boost::mutex::scoped_lock lock(battery_servers_mutex_);
+    boost::mutex::scoped_lock lock(update_mutex_);
 
-    vector<ros::BatteryObservable> batteries;
-    for (map<int, boost::shared_ptr<const pr2_msgs::BatteryServer> >::iterator i = battery_servers_.begin(); i != battery_servers_.end(); i++)
+    ROS_DEBUG("Received power board state message: %s", masterStateToString(power_board_state->master_state).c_str());
+
+    master_state_ = power_board_state->master_state;
+
+    // Publish the power state immediately if we're shutting down. Want to ensure we record these data points.
+    if (master_state_ == pr2_msgs::PowerBoardState::MASTER_SHUTDOWN)
+        publishPowerState();
+}
+
+string PowerMonitor::masterStateToString(int8_t master_state) const
+{
+    switch (master_state)
     {
-        const pr2_msgs::BatteryServer* bs = i->second.get();
+        case pr2_msgs::PowerBoardState::MASTER_NOPOWER:  return "No Power";
+        case pr2_msgs::PowerBoardState::MASTER_STANDBY:  return "Standby";
+        case pr2_msgs::PowerBoardState::MASTER_ON:       return "On";
+        case pr2_msgs::PowerBoardState::MASTER_OFF:      return "Off";
+        case pr2_msgs::PowerBoardState::MASTER_SHUTDOWN: return "Shutdown";
+        default:                                         return "Unknown";
+    }
+}
 
-        bool ac_present = (bs->powerPresent == 0xF);    // all four batteries show AC present
+PowerObservation PowerMonitor::extractObservation()
+{
+    boost::mutex::scoped_lock lock(update_mutex_);
+
+    vector<BatteryObservation> batteries;
+    for (map<int, boost::shared_ptr<const pr2_msgs::BatteryServer2> >::iterator i = battery_servers_.begin(); i != battery_servers_.end(); i++)
+    {
+        const pr2_msgs::BatteryServer2* bs = i->second.get();
+
+        ros::Time stamp = bs->header.stamp;
 
         for (unsigned int j = 0; j < bs->battery.size(); j++)
         {
-            const pr2_msgs::BatteryState& b = bs->battery[j];
+            const pr2_msgs::BatteryState2& b = bs->battery[j];
 
-            float        voltage = toFloat(b.batReg[0x9]);
-            float        current = toFloat(b.batReg[0xA]);
-            unsigned int rsc     = b.batReg[0x0D];
-            unsigned int tte     = b.batReg[0x12];
-            unsigned int ttf     = b.batReg[0x13];
+            bool         ac_present = b.power_present;
+            float        voltage    = b.battery_register[0x9] / 1000.0f;
+            float        current    = b.battery_register[0xA] / 1000.0f;
+            unsigned int rsc        = b.battery_register[0x0D];
+            float        rem_cap    = b.battery_register[0x0F] / 1000.0f;
+            unsigned int tte_min    = b.battery_register[0x12];
+            unsigned int ttf_min    = b.battery_register[0x13];
 
-            float power = current * voltage;
+            ros::Duration tte;
+            if (tte_min > 0)
+                tte = ros::Duration(tte_min * 60, 0);
+            else
+                tte = ros::Duration(-1, 0);
 
-            batteries.push_back(BatteryObservable(ac_present, voltage, current, rsc, tte, ttf));
+            ros::Duration ttf;
+            if (ttf_min > 0)
+                ttf = ros::Duration(ttf_min * 60, 0);
+            else
+                ttf = ros::Duration(-1, 0);
 
-            ROS_DEBUG("Battery %d.%d: %6.2f V %6.2f A %6.2f W", bs->id, j + 1, voltage, current, power);
+	    if (voltage == 0.0 || current == 0.0)
+	        continue;
+
+            batteries.push_back(BatteryObservation(stamp, ac_present, voltage, current, rsc, rem_cap, tte, ttf));
+
+            ROS_DEBUG("Battery %d.%d: %6.2f V %6.2f A %6.2f W", bs->id, j + 1, voltage, current, current * voltage);
         }
     }
 
-    return ros::PowerObservable(batteries);
+    return PowerObservation(ros::Time::now(), master_state_, batteries);
 }
 
-void ros::PowerMonitor::onPublishTimer(const ros::TimerEvent& e)
+void PowerMonitor::onPublishTimer(const ros::TimerEvent& e)
 {
+    publishPowerState();
+}
+
+void PowerMonitor::publishPowerState()
+{
+    boost::mutex::scoped_lock lock(publish_mutex_);
+
     // Extract info from the battery server
-    ros::PowerObservable observable = extractPowerObservable();
-    ROS_DEBUG("Total power: %6.1f W", observable.getTotalPower());
-    ROS_DEBUG("Min voltage: %6.2f V", observable.getMinVoltage());
+    PowerObservation obs = extractObservation();
+    if (obs.getBatteries().size() == 0)
+    {
+        ROS_DEBUG("Nothing observed");
+        return;
+    }
 
-    // Estimate time and capacity remaining
-    ros::PowerStateEstimate estimate = power_state_estimator_->estimate(observable);
-    ROS_DEBUG("Time remaining: %.0f min", estimate.time_remaining.toSec() / 60);
-    ROS_DEBUG("Min capacity: %d%%",       estimate.relative_capacity);
+    ROS_DEBUG("Power: %6.1f W. Min voltage: %6.2f V", obs.getTotalPower(), obs.getMinVoltage());
 
-    // Publish the estimate
-    power_state_.header.stamp      = ros::Time::now();
-    power_state_.AC_present        = observable.getAcCount();
-    power_state_.power_consumption = observable.getTotalPower();
-    power_state_.relative_capacity = (int8_t) estimate.relative_capacity;
-    power_state_.prediction_method = "fuel gauge";
-    power_state_.time_remaining    = estimate.time_remaining;
+    // Give every estimator the chance to record this observation
+    for (map<PowerStateEstimator::Type, boost::shared_ptr<PowerStateEstimator> >::const_iterator i = estimators_.begin(); i != estimators_.end(); i++)
+        i->second.get()->recordObservation(obs);
 
-    pub_.publish(power_state_);
-}
+    // Use the active estimator to estimate the time and capacity remaining
+    ros::Time t = ros::Time::now();
+    if (active_estimator_->canEstimate(t))
+    {
+        PowerStateEstimate estimate = active_estimator_->estimate(t);
+        ROS_DEBUG("Remaining: %.0f min (%d%%)", estimate.time_remaining.toSec() / 60, estimate.relative_capacity);
 
-float ros::PowerMonitor::toFloat(int value)
-{
-    int tmp = value;
-    if (tmp & 0x8000)
-        tmp -= 65536;
-    return tmp / 1000.0f;
+        // Publish the power state estimate
+        pr2_msgs::PowerState ps;
+        ps.header.stamp      = ros::Time::now();
+        ps.AC_present        = obs.getAcCount();
+        ps.power_consumption = obs.getTotalPower();
+        ps.prediction_method = active_estimator_->getMethodName();
+        ps.relative_capacity = (int8_t) estimate.relative_capacity;
+        ps.time_remaining    = estimate.time_remaining;
+        power_state_pub_.publish(ps);
+    }
 }
 
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "power_monitor");
-
-    ros::PowerMonitor monitor;
-
+    PowerMonitor monitor;
     ros::spin();
-
     return 0;
 }

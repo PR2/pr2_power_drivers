@@ -5,4 +5,8 @@ rosbuild_init()
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
-rosbuild_add_executable(power_monitor src/power_monitor.cpp src/power_state_estimator.cpp)
+rosbuild_find_ros_package(dynamic_reconfigure)
+include(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)
+gencfg()
+
+rosbuild_add_executable(power_monitor src/power_monitor.cpp src/power_state_estimator.cpp src/observation.cpp)
