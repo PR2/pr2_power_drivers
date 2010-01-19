@@ -676,10 +676,10 @@ void PowerBoard::sendMessages()
 
       //ROS_DEBUG(" Revisions:");
       //ROS_DEBUG("         PCA = %c", status->pca_rev);
-      stat.add("Circuit board assembly revision", status->pca_rev);
+      stat.add("Circuit assembly revision", status->pca_rev);
 
       //ROS_DEBUG("         PCB = %c", status->pcb_rev);
-      stat.add("Circuit board revision respectively", status->pcb_rev);
+      stat.add("Circuit board revision", status->pcb_rev);
 
       //ROS_DEBUG("       Major = %c", status->major_rev);
       stat.add("Major Revision", status->major_rev);
