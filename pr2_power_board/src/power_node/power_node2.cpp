@@ -337,7 +337,7 @@ const char* PowerBoard::cb_state_to_str(char state)
   case STATE_PUMPING:
     return "pumping";
   case STATE_ON:
-    return "On";
+    return "Enabled";
   case STATE_DISABLED:
     return "Disabled";
   }
@@ -627,7 +627,7 @@ void PowerBoard::sendMessages()
       stat.add("DCDC 12V aux", status->DCDC_12V_aux);
       
       //ROS_DEBUG("  DCDC 12V cpu0   = %f", status->DCDC_12V_cpu0);
-      stat.add("DCDC 12V cpu0", status->DCDC_12V_cpu0);
+      stat.add("DCDC 12V c1", status->DCDC_12V_cpu0);
       
       //ROS_DEBUG("  CB0 (Base)  = %f", status->CB0_voltage);
       stat.add("Breaker 0 Voltage", status->CB0_voltage);
@@ -643,52 +643,43 @@ void PowerBoard::sendMessages()
       
       //ROS_DEBUG(" Fan Speeds:");
       //ROS_DEBUG("  Fan 0       = %u", status->fan0_speed);
-      stat.add("Fan 0 Speed", status->fan0_speed);
+      stat.add("Base Fan Speed", status->fan0_speed);
       
       //ROS_DEBUG("  Fan 1       = %u", status->fan1_speed);
-      stat.add("Fan 1 Speed", status->fan1_speed);
+      stat.add("Expansion Fan 1 Speed", status->fan1_speed);
       
       //ROS_DEBUG("  Fan 2       = %u", status->fan2_speed);
-      stat.add("Fan 2 Speed", status->fan2_speed);
+      stat.add("Expansion Fan 2 Speed", status->fan2_speed);
       
       //ROS_DEBUG("  Fan 3       = %u", status->fan3_speed);
-      stat.add("Fan 3 Speed", status->fan3_speed);
+      stat.add("Expansion Fan 3 Speed", status->fan3_speed);
 
       //ROS_DEBUG(" State:");
       //ROS_DEBUG("  CB0 (Base)  = %s", cb_state_to_str(status->CB0_state));
-      stat.add("Breaker 0 State", cb_state_to_str(status->CB0_state));
+      stat.add("Breaker 0 (Left Arm) State", cb_state_to_str(status->CB0_state));
 
       //ROS_DEBUG("  CB1 (R-arm) = %s", cb_state_to_str(status->CB1_state));
-      stat.add("Breaker 1 State", cb_state_to_str(status->CB1_state));
+      stat.add("Breaker 1 (Base/Body) State", cb_state_to_str(status->CB1_state));
 
       //ROS_DEBUG("  CB2 (L-arm) = %s", cb_state_to_str(status->CB2_state));
-      stat.add("Breaker 2 State", cb_state_to_str(status->CB2_state));
+      stat.add("Breaker 2 (Right Arm) State", cb_state_to_str(status->CB2_state));
       
       //ROS_DEBUG("  DCDC        = %s", master_state_to_str(status->DCDC_state));
       stat.add("DCDC state", master_state_to_str(status->DCDC_state));
 
-      //ROS_DEBUG(" Status:");
-      //ROS_DEBUG("  CB0 (Base)  = %s", (status->CB0_status) ? "On" : "Off");
-      stat.add("Breaker 0 Status", (status->CB0_status) ? "On" : "Off");
-      
-      //ROS_DEBUG("  CB1 (R-arm) = %s", (status->CB1_status) ? "On" : "Off");
-      stat.add("Breaker 1 Status", (status->CB1_status) ? "On" : "Off");
-      
-      //ROS_DEBUG("  CB2 (L-arm) = %s", (status->CB2_status) ? "On" : "Off");
-      stat.add("Breaker 2 Status", (status->CB2_status) ? "On" : "Off");
       
       //ROS_DEBUG("  estop_button= %x", (status->estop_button_status));
       stat.add("RunStop Button Status", (status->estop_button_status ? "True":"False"));
       
       //ROS_DEBUG("  estop_status= %x", (status->estop_status));
-      stat.add("RunStop Status", (status->estop_status ? "True":"False"));
+      stat.add("RunStop Wireless Status", (status->estop_status ? "True":"False"));
 
       //ROS_DEBUG(" Revisions:");
       //ROS_DEBUG("         PCA = %c", status->pca_rev);
-      stat.add("PCA", status->pca_rev);
+      stat.add("Circuit board assembly revision", status->pca_rev);
 
       //ROS_DEBUG("         PCB = %c", status->pcb_rev);
-      stat.add("PCB", status->pcb_rev);
+      stat.add("Circuit board revision respectively", status->pcb_rev);
 
       //ROS_DEBUG("       Major = %c", status->major_rev);
       stat.add("Major Revision", status->major_rev);
@@ -700,7 +691,7 @@ void PowerBoard::sendMessages()
       stat.add("Max Current", status->max_input_current);
 
       //ROS_DEBUG("  DCDC 12V cpu1   = %f", status->DCDC_12V_cpu1);
-      stat.add("DCDC 12V cpu1", status->DCDC_12V_cpu1);
+      stat.add("DCDC 12V c2", status->DCDC_12V_cpu1);
 
       //ROS_DEBUG("  DCDC 12V user   = %f", status->DCDC_12V_user);
       stat.add("DCDC 12V user", status->DCDC_12V_user);
