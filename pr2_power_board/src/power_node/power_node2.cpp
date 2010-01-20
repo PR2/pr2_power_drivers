@@ -584,7 +584,11 @@ void PowerBoard::collectMessages()
 
 void PowerBoard::sendMessages()
 {
-  ros::Rate r(1);
+  ros::Rate r(5);
+  r.sleep();
+  r = 1;
+  r.reset();
+
   while(node_handle.ok())
   {
     r.sleep();
@@ -676,10 +680,10 @@ void PowerBoard::sendMessages()
 
       //ROS_DEBUG(" Revisions:");
       //ROS_DEBUG("         PCA = %c", status->pca_rev);
-      stat.add("Circuit board assembly revision", status->pca_rev);
+      stat.add("Circuit assembly revision", status->pca_rev);
 
       //ROS_DEBUG("         PCB = %c", status->pcb_rev);
-      stat.add("Circuit board revision respectively", status->pcb_rev);
+      stat.add("Circuit board revision", status->pcb_rev);
 
       //ROS_DEBUG("       Major = %c", status->major_rev);
       stat.add("Major Revision", status->major_rev);
@@ -888,8 +892,8 @@ int main(int argc, char** argv)
   private_handle.getParam( "transition_frequency", transition_frequency );
   ROS_INFO("Using transition frequency %fHz", transition_frequency);
 
-  ros::Time last_msg = ros::Time::now();
-  ros::Time last_transition = ros::Time::now();
+  ros::Time last_msg( 0, 0);
+  ros::Time last_transition( 0, 0);
 
   double ros_rate = 10; //(Hz) need to run the "spin" loop at some number of Hertz to handle ros things.
 

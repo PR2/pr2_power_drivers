@@ -1,5 +1,5 @@
 <package>
-  <description>This provides a ros node for the PR2 Power Board</description>
+  <description brief="PR2 power board drivers">This provides a ROS node for the PR2 Power Board.</description>
   <author>Curt Meyers, Blaise Gassend</author>
   <license>BSD</license>
   <review status="Doc reviewed" notes="Dec 2009"/>
