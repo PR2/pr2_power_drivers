@@ -1,5 +1,5 @@
 <package>
-  <description>This is an interface to the Ocean Server Technology Intelligent Battery and Power System.</description>
+  <description brief="Ocean Server Battery Drivers">This is an interface to the Ocean Server Technology Intelligent Battery and Power System.</description>
   <author>Tully Foote, Curt Meyers</author>
   <license>BSD</license>
   <review status="Doc reviewed" notes="Dec 2009"/>
