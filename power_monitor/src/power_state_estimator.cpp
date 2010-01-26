@@ -164,11 +164,11 @@ PowerStateEstimate AdvancedPowerStateEstimator::estimate(const ros::Time& t)
     else
     {
         // No history. Resort to fuel gauge method
-      ROS_DEBUG("no history, resorting to fuel gauge");
-      ROS_DEBUG("ac count: %d", obs_.getAcCount());
-      ROS_DEBUG("max ttf: %d", obs_.getMaxTimeToFull(t).sec);
-      ROS_DEBUG("min tte: %d", obs_.getMinTimeToEmpty(t).sec);
-      ROS_DEBUG("rel cap: %d", obs_.getMinRelativeStateOfCharge());
+        ROS_DEBUG("No history (resorting to fuel gauge)");
+	ROS_DEBUG("AC count: %d", obs_.getAcCount());
+	ROS_DEBUG("current reported relative state of charge: %d", obs_.getMinRelativeStateOfCharge());
+	ROS_DEBUG("maximum reported time-to-full: %d", obs_.getMaxTimeToFull(t).sec);
+	ROS_DEBUG("minimum reported time-to-empty: %d", obs_.getMinTimeToEmpty(t).sec);
 
         ps.time_remaining = obs_.getAcCount() > 0 ? obs_.getMaxTimeToFull(t) : obs_.getMinTimeToEmpty(t);
         ps.relative_capacity = obs_.getMinRelativeStateOfCharge();
