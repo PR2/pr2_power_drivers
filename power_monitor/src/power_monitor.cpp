@@ -183,8 +183,8 @@ PowerObservation PowerMonitor::extractObservation()
             else
                 ttf = ros::Duration(-1, 0);
 
-	    if (voltage == 0.0 || current == 0.0)
-	        continue;
+            if (voltage == 0.0)
+                continue;
 
             batteries.push_back(BatteryObservation(stamp, ac_present, voltage, current, rsc, rem_cap, tte, ttf));
 
