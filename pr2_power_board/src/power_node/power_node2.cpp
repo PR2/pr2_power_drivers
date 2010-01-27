@@ -249,37 +249,6 @@ int PowerBoard::send_command( int circuit_breaker, const std::string &command, u
 {
   assert(devicePtr != NULL);
 
-  if ((circuit_breaker < 0) || (circuit_breaker >= pr2_power_board::PowerBoardCommand2::Request::NUMBER_OF_CIRCUITS)) {
-    fprintf(stderr, "Circuit breaker number must be between 0 and %d\n", pr2_power_board::PowerBoardCommand2::Request::NUMBER_OF_CIRCUITS);
-    return -1;
-  }
-
-  ROS_DEBUG("circuit=%d command=%s flags=%x\n", circuit_breaker, command.c_str(), flags);
-
-  // Determine what command to send
-  char command_enum = NONE;
-  if (command == "start") {
-    command_enum = COMMAND_START;
-  }
-  else if (command ==  "stop") {
-    command_enum = COMMAND_STOP;
-  }
-  else if (command == "reset") {
-    command_enum = COMMAND_RESET;
-  }
-  else if (command == "disable") {
-    command_enum = COMMAND_DISABLE;
-  }
-  else if (command == "none") {
-    command_enum = NONE;
-  }
-  else {
-    ROS_ERROR("invalid command '%s'", command.c_str());
-    return -1;
-  }
-  //" -c : command to send to device : 'start', 'stop', 'reset', 'disable'\n"
-
-
   // Build command message
   CommandMessage cmdmsg;
   memset(&cmdmsg, 0, sizeof(cmdmsg));
@@ -288,25 +257,89 @@ int PowerBoard::send_command( int circuit_breaker, const std::string &command, u
   cmdmsg.header.serial_num = devicePtr->getPowerMessage().header.serial_num;
   //cmdmsg.header.serial_num = 0x12345678;
   strncpy(cmdmsg.header.text, "power command message", sizeof(cmdmsg.header.text));
-  cmdmsg.command.CB0_command = NONE;
-  cmdmsg.command.CB1_command = NONE;
-  cmdmsg.command.CB2_command = NONE;
-  if (circuit_breaker==0) {
-    cmdmsg.command.CB0_command = command_enum;
-  }
-  else if (circuit_breaker==1) {
-    cmdmsg.command.CB1_command = command_enum;
-  }
-  else if (circuit_breaker==2) {
-    cmdmsg.command.CB2_command = command_enum;
-  }
-  else if (circuit_breaker==-1) {
-    cmdmsg.command.CB0_command = command_enum;
-    cmdmsg.command.CB1_command = command_enum;
-    cmdmsg.command.CB2_command = command_enum;
-  }
 
-  cmdmsg.command.flags = flags;
+  if(command == "fan")
+  {
+    //use circuit_breaker to choose which fan.
+    //use flags to set the duty cycle.
+
+    if((circuit_breaker > 3) || (circuit_breaker < 0))
+    {
+      fprintf(stderr, "Fan must be between 0 and 3\n" );
+      return -1;
+    }
+
+    switch(circuit_breaker)
+    {
+      default:
+      case 0:
+        cmdmsg.command.fan0_command = flags;
+        break;
+      case 1:
+        cmdmsg.command.fan1_command = flags;
+        break;
+      case 2:
+        cmdmsg.command.fan2_command = flags;
+        break;
+      case 3:
+        cmdmsg.command.fan3_command = flags;
+        break;
+    }
+
+    ROS_DEBUG("Set fan %d to %d%% output", circuit_breaker, flags);
+  }
+  else
+  {
+    if ((circuit_breaker < 0) || (circuit_breaker >= pr2_power_board::PowerBoardCommand2::Request::NUMBER_OF_CIRCUITS)) {
+      fprintf(stderr, "Circuit breaker number must be between 0 and %d\n", pr2_power_board::PowerBoardCommand2::Request::NUMBER_OF_CIRCUITS);
+      return -1;
+    }
+
+    ROS_DEBUG("circuit=%d command=%s flags=%x\n", circuit_breaker, command.c_str(), flags);
+
+    // Determine what command to send
+    char command_enum = NONE;
+    if (command == "start") {
+      command_enum = COMMAND_START;
+    }
+    else if (command ==  "stop") {
+      command_enum = COMMAND_STOP;
+    }
+    else if (command == "reset") {
+      command_enum = COMMAND_RESET;
+    }
+    else if (command == "disable") {
+      command_enum = COMMAND_DISABLE;
+    }
+    else if (command == "none") {
+      command_enum = NONE;
+    }
+    else {
+      ROS_ERROR("invalid command '%s'", command.c_str());
+      return -1;
+    }
+    //" -c : command to send to device : 'start', 'stop', 'reset', 'disable'\n"
+
+
+    if (circuit_breaker==0) {
+      cmdmsg.command.CB0_command = command_enum;
+    }
+    else if (circuit_breaker==1) {
+      cmdmsg.command.CB1_command = command_enum;
+    }
+    else if (circuit_breaker==2) {
+      cmdmsg.command.CB2_command = command_enum;
+    }
+    else if (circuit_breaker==-1) {
+      cmdmsg.command.CB0_command = command_enum;
+      cmdmsg.command.CB1_command = command_enum;
+      cmdmsg.command.CB2_command = command_enum;
+    }
+
+    cmdmsg.command.flags = flags;
+    ROS_DEBUG("Sent command %s(%d), circuit %d", command.c_str(), command_enum, circuit_breaker);
+
+  }
 
   errno = 0;
   //ROS_INFO("Send on %s", inet_ntoa(SendInterfaces[xx]->ifc_address.sin_addr));
@@ -320,7 +353,7 @@ int PowerBoard::send_command( int circuit_breaker, const std::string &command, u
   }
 
   ROS_DEBUG("Send to Serial=%u, revision=%u", cmdmsg.header.serial_num, cmdmsg.header.message_revision);
-  ROS_DEBUG("Sent command %s(%d), circuit %d", command.c_str(), command_enum, circuit_breaker);
+
 
   return 0;
 }

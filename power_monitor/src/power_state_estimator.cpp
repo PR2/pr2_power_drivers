@@ -79,7 +79,7 @@ const std::string AdvancedPowerStateEstimator::DEFAULT_LOG_FILE = "/hwlog/power_
 
 AdvancedPowerStateEstimator::AdvancedPowerStateEstimator()
 {
-    ros::NodeHandle node;
+    ros::NodeHandle node("~");
 
     log_filename_ = DEFAULT_LOG_FILE;
     node.getParam("advanced_log_file", log_filename_);
@@ -151,21 +151,27 @@ PowerStateEstimate AdvancedPowerStateEstimator::estimate(const ros::Time& t)
         float actual_rem_cap = obs_.getTotalRemainingCapacity() - min_rem_cap;
         float rem_hours      = actual_rem_cap / -current;
 
-	ROS_DEBUG("current reported relative state of charge: %d", obs_.getMinRelativeStateOfCharge());
-        ROS_DEBUG("minimum reported remaining capacity: %d", min_rem_cap);
+        ROS_DEBUG("current reported relative state of charge: %d", obs_.getMinRelativeStateOfCharge());
+        ROS_DEBUG("minimum reported remaining capacity: %d", (int) min_rem_cap);
         ROS_DEBUG("minimum reported relative state of charge: %d", min_rsc);
         ROS_DEBUG("current: %.2f", current);
         ROS_DEBUG("report remaining capacity: %f", obs_.getTotalRemainingCapacity());
         ROS_DEBUG("time remaining: %.2f mins", rem_hours * 60);
 
         ps.time_remaining = ros::Duration(rem_hours * 60 * 60);
-	ps.relative_capacity = int(100 * (obs_.getMinRelativeStateOfCharge() - min_rsc) / (100.0 - min_rsc));
+        ps.relative_capacity = int(100 * (obs_.getMinRelativeStateOfCharge() - min_rsc) / (100.0 - min_rsc));
     }
     else
     {
         // No history. Resort to fuel gauge method
+        ROS_DEBUG("No history (resorting to fuel gauge)");
+	ROS_DEBUG("AC count: %d", obs_.getAcCount());
+	ROS_DEBUG("current reported relative state of charge: %d", obs_.getMinRelativeStateOfCharge());
+	ROS_DEBUG("maximum reported time-to-full: %d", obs_.getMaxTimeToFull(t).sec);
+	ROS_DEBUG("minimum reported time-to-empty: %d", obs_.getMinTimeToEmpty(t).sec);
+
         ps.time_remaining = obs_.getAcCount() > 0 ? obs_.getMaxTimeToFull(t) : obs_.getMinTimeToEmpty(t);
-	ps.relative_capacity = obs_.getMinRelativeStateOfCharge();
+        ps.relative_capacity = obs_.getMinRelativeStateOfCharge();
     }
 
     return ps;
@@ -281,9 +287,14 @@ bool AdvancedPowerStateEstimator::saveObservation(const PowerObservation& obs) c
         return false;
     }
 
-    // Write the header if the file is new
     if (!exists)
+    {
+        // Change permissions to rw-rw-rw-
+        chmod(log_filename_.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+
+        // Write header row
         f << "secs,master_state,charging,total_power,min_voltage,min_relative_state_of_charge,total_remaining_capacity" << endl;
+    }
 
     // Append the observation row
     f << obs.getStamp().sec << ","
