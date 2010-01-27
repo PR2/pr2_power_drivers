@@ -183,12 +183,12 @@ PowerObservation PowerMonitor::extractObservation()
             else
                 ttf = ros::Duration(-1, 0);
 
-	    if (voltage == 0.0 || current == 0.0)
-	        continue;
+            if (voltage == 0.0)
+                continue;
 
             batteries.push_back(BatteryObservation(stamp, ac_present, voltage, current, rsc, rem_cap, tte, ttf));
 
-            ROS_DEBUG("Battery %d.%d: %6.2f V %6.2f A %6.2f W", bs->id, j + 1, voltage, current, current * voltage);
+            ROS_DEBUG("Battery %d.%d: %6.2f V %6.2f A %6.2f W (soc: %d, cap: %6.2f, tte: %dm, ttf: %dm)", bs->id, j + 1, voltage, current, current * voltage, rsc, rem_cap, tte_min, ttf_min);
         }
     }
 
