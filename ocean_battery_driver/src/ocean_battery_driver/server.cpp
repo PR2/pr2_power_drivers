@@ -23,7 +23,7 @@ using namespace ros;
 using namespace willowgarage::ocean;
 namespace po = boost::program_options;
 
-static const float BATTERY_TEMP_WARN = 45.0;
+static const float BATTERY_TEMP_WARN = 50.0;
 
 float toFloat(const int &value)
 {
