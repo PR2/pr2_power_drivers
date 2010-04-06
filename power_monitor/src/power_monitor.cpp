@@ -39,10 +39,10 @@ using namespace power_monitor;
 
 PowerMonitor::PowerMonitor() : master_state_(-1)
 {
-    ros::NodeHandle node("~");
+    ros::NodeHandle node;
 
-    string battery_server_topic = "/battery/server2";
-    string power_board_node     = "/power_board";
+    string battery_server_topic = "battery/server2";
+    string power_board_node     = "power_board";
     string estimator_type_str   = "advanced";
     double freq                 = 0.1;
 
@@ -78,7 +78,7 @@ PowerMonitor::PowerMonitor() : master_state_(-1)
     else
         setActiveEstimator(i->second);
 
-    power_state_pub_       = node.advertise<pr2_msgs::PowerState>("/power_state", 5);
+    power_state_pub_       = node.advertise<pr2_msgs::PowerState>("power_state", 5, true);
     power_state_pub_timer_ = node.createTimer(ros::Duration(1.0 / freq), &PowerMonitor::onPublishTimer, this);
     battery_server_sub_    = node.subscribe(battery_server_topic, 10, &PowerMonitor::batteryServerUpdate, this);
     power_node_sub_        = node.subscribe(node.resolveName(power_board_node) + "/state", 10, &PowerMonitor::powerNodeUpdate, this);

@@ -56,7 +56,7 @@ void PowerStateEstimator::recordObservation(const PowerObservation& obs)
 
 bool PowerStateEstimator::canEstimate(const ros::Time& t) const
 {
-    return t >= ros::Time::now() && obs_.getBatteries().size() > 0;
+    return t <= ros::Time::now() && obs_.getBatteries().size() > 0;
 }
 
 // FuelGaugePowerStateEstimator
