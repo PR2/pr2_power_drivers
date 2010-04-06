@@ -39,7 +39,7 @@ using namespace power_monitor;
 
 PowerMonitor::PowerMonitor() : master_state_(-1)
 {
-    ros::NodeHandle node("~");
+    ros::NodeHandle node;
 
     string battery_server_topic = "battery/server2";
     string power_board_node     = "power_board";
