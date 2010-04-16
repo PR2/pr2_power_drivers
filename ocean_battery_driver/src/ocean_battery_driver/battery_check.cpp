@@ -62,8 +62,6 @@ private:
   volatile bool stopRequest;
   
   vector<bool> present;
-  vector<bool> charging;
-  vector<bool> discharging;
   vector<bool> inhibited;
   vector<ros::Time> last_update;
 
@@ -79,8 +77,6 @@ private:
       for (int i = 0; i < os.server.MAX_BAT_COUNT; ++i)
       {
         present[i]     = os.server.battery[i].present;
-        charging[i]    = os.server.battery[i].charging;
-        discharging[i] = os.server.battery[i].discharging;
         inhibited[i]   = os.server.battery[i].inhibited;
         last_update[i] = os.server.battery[i].last_battery_update;
       }
@@ -96,8 +92,6 @@ public:
     os.initialize(dev);
 
     present.resize(os.server.MAX_BAT_COUNT);
-    charging.resize(os.server.MAX_BAT_COUNT);
-    discharging.resize(os.server.MAX_BAT_COUNT);
     inhibited.resize(os.server.MAX_BAT_COUNT);
     last_update.resize(os.server.MAX_BAT_COUNT);
   }
@@ -117,36 +111,28 @@ public:
   {
     bool ok = true;
 
-    // Charge v discharging states should be same for all batteries
-    bool charge_ok = true;
-    bool discharge_ok = true;
-
     // All batteries must have updated within timeout
     bool stale = false;
 
     for (int i = 0; i < os.server.MAX_BAT_COUNT; ++i)
     {
       ok = ok && present[i]; 
-      charge_ok = charging[i] == charging[0] && charge_ok;
-      discharge_ok = discharging[i] == discharging[0] && discharge_ok;
       stale = ((ros::Time::now() - last_update[i]).toSec() > timeout_) || stale;
     }
 
-    return ok && charge_ok && discharge_ok && !stale;
+    return ok && !stale;
   }
 
   string getStatus() const
   {
     stringstream ss;
-    ss.str("Device: ");
-    ss << device_ << "\n";
+    ss << "Port: " << device_ << "\n";
     for (int i = 0; i < os.server.MAX_BAT_COUNT; ++i)
       {
 	ss << "\tBattery " << i << ":\n";
-	ss << "\t\tPresent: " << (present[i] ? "Yes" : "NO") << "\n";
-	ss << "\t\tCharging: " << (charging[i] ? "Yes" : "No") << "\n";
-	ss << "\t\tDischarging: " << (discharging[i] ? "Yes" : "No") << "\n";
+	ss << "\t\tPresent: " << (present[i] ? "Yes" : "No") << "\n";
 	ss << "\t\tInhibited: " << (inhibited[i] ? "Yes" : "No") << "\n";
+        ss << "\t\tHas updated: " << (last_update[i] > ros::Time(1) ? "Yes" : "No") << "\n";
         ss << "\t\tTime Since Update: " << (ros::Time::now() - last_update[i]).toSec() << "\n";
       }
     return ss.str();
@@ -204,7 +190,7 @@ int main(int argc, char** argv)
   }
 
   if (verbose)
-    cout << "Running battery check. Waiting for batteries to initialize\n";
+    cout << "Running battery check. Waiting for battery drivers to initialize\n";
 
   vector<boost::shared_ptr<BatteryServerChecker> > checkers;
   for (uint i = 0; i < ports.size(); ++i)

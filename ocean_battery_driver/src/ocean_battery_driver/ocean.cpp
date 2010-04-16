@@ -76,9 +76,9 @@ ocean::ocean ( int id,  int debug)
   server.id = id;
   server.battery.resize(4);
 
-  // Mark last update as "now"
+  // Mark last update as "-1" for initial values
   for (uint i = 0; i < server.battery.size(); ++i)
-    server.battery[i].last_battery_update = ros::Time::now();
+    server.battery[i].last_battery_update = ros::Time(-1);
 }
 
 ocean::~ocean ()
