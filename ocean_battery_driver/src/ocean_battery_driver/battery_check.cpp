@@ -35,13 +35,13 @@
 ///\author Kevin Watts
 ///\brief Battery self test. Checks that all batteries responding
 
-#include <boost/bind.hpp>
-#include <boost/program_options.hpp>
-#include <boost/thread/thread.hpp>
-
 #include <iostream>
 #include <string>
 #include <vector>
+
+#include <boost/bind.hpp>
+#include <boost/program_options.hpp>
+#include <boost/thread/thread.hpp>
 
 #include <ros/rate.h>
 #include <ros/time.h>
@@ -129,7 +129,7 @@ public:
       ok = ok && present[i]; 
       charge_ok = charging[i] == charging[0] && charge_ok;
       discharge_ok = discharging[i] == discharging[0] && discharge_ok;
-      stale = ((ros::Time::now() - last_update[i]).toSec() > 15) || stale;
+      stale = ((ros::Time::now() - last_update[i]).toSec() > timeout_) || stale;
     }
 
     return ok && charge_ok && discharge_ok && !stale;
