@@ -121,7 +121,7 @@ public:
     bool charge_ok = true;
     bool discharge_ok = true;
 
-    // All batteries must have updated in past 15s
+    // All batteries must have updated within timeout
     bool stale = false;
 
     for (int i = 0; i < os.server.MAX_BAT_COUNT; ++i)
@@ -186,6 +186,12 @@ int main(int argc, char** argv)
     return 1;
   }
 
+  if (min_duration < timeout)
+  {
+    fprintf(stderr, "Timeout must be greater than the minimum duration. Unable check batteries.\n");
+    return 1;
+  }
+
   vector<string> ports(vm["port"].as< vector<string> >());
   vector<string>::iterator it;
 
@@ -209,7 +215,6 @@ int main(int argc, char** argv)
 
   if (verbose)
     cout << "Battery monitoring started\n";
-
 
   ros::Rate my_rate(2);
   ros::Time startTime = ros::Time::now();

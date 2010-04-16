@@ -10,6 +10,7 @@
 #include <poll.h>
 
 #include "ocean.h"
+#include "ros/time.h"
 
 #define FILE_LOGGING 0
 
