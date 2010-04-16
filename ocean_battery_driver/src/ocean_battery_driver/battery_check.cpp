@@ -252,9 +252,9 @@ int main(int argc, char** argv)
  
   if (verbose)
   {
-    fprintf(stderr, "Battery status reports:\n");
+    fprintf(stdout, "Battery status reports:\n");
     for (uint i = 0; i < checkers.size(); ++i)
-      cerr << checkers[i]->getStatus().c_str();
+      cout << checkers[i]->getStatus().c_str();
   }
 
   if (all_ok)
@@ -264,9 +264,9 @@ int main(int argc, char** argv)
   }
 
   fprintf(stderr, "Not all batteries reported OK.\n");
-  cout << "Status: \n";
+  cerr << "Status: \n";
   for (uint i = 0; i < checkers.size(); ++i)
-    cout << "\tDevice " << i << ": " << (checkers[i]->batteryOK() ? string("OK") : string("Error")) << "\n";
+    cerr << "\tDevice " << i << ": " << (checkers[i]->batteryOK() ? string("OK") : string("Error")) << "\n";
   
   return 1;
 }
