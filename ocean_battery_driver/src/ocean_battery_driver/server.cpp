@@ -70,6 +70,9 @@ class server
         serial_device = dev;
       }
 
+      private_handle.param("lag_timeout", lag_timeout_, 60);
+      private_handle.param("stale_timeout", stale_timeout_, 120);
+
       //
       //printf("device=%s  debug_level=%d\n", argv[1], atoi(argv[2]));
       //cout << "device=" << serial_device <<  "  debug_level=" << debug_level << endl;
@@ -96,6 +99,8 @@ class server
     std::string serial_device;
     volatile bool stopRequest;
     boost::shared_ptr<boost::thread> myThread;
+    int lag_timeout_, stale_timeout_;
+
 
     void run()
     {
@@ -235,7 +240,7 @@ class server
                       stat.message = warn.str();
                     }
 
-                    stat.add( "Temperature (C)", celsius);
+                    stat.add("Temperature (C)", celsius);
                   }
                   else if(addr == 0x1c) // Serial Number
                   {
@@ -255,6 +260,17 @@ class server
 
               elapsed = currentTime - os.server.battery[xx].last_battery_update;
               stat.add("Time since update (s)", elapsed.toSec());
+
+              if (lag_timeout_ > 0 && elapsed.toSec() > lag_timeout_)
+              {
+                stat.level = diagnostic_msgs::DiagnosticStatus::WARN;
+                stat.message = "Lagging updates";
+              }
+              if (stale_timeout_ > 0 && elapsed.toSec() > stale_timeout_)
+              {
+                stat.level = diagnostic_msgs::DiagnosticStatus::ERROR;
+                stat.message = "No updates";
+              }
 
               msg_out.status.push_back(stat);
 

@@ -1,19 +1,52 @@
+/*********************************************************************
+ * Software License Agreement (BSD License)
+ *
+ *  Copyright (c) 2010, Willow Garage, Inc.
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of the Willow Garage nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *********************************************************************/
 
 ///\author Kevin Watts
 ///\brief Battery self test. Checks that all batteries responding
 
-#include "ocean.h"
-
-#include <boost/thread/thread.hpp>
 #include <boost/bind.hpp>
 #include <boost/program_options.hpp>
-#include <iostream>
-#include <vector>
-#include <string>
-#include <unistd.h>
+#include <boost/thread/thread.hpp>
 
-#include <ros/time.h>
+#include <iostream>
+#include <string>
+#include <vector>
+
 #include <ros/rate.h>
+#include <ros/time.h>
+
+#include "ocean.h"
 
 namespace po = boost::program_options;
 using namespace std;
@@ -24,29 +57,32 @@ class BatteryServerChecker
 private:
   int id_;
   string device_;
+  int timeout_;
   ocean os;
-  bool stopRequest;
-
+  volatile bool stopRequest;
+  
   vector<bool> present;
   vector<bool> charging;
   vector<bool> discharging;
   vector<bool> inhibited;
+  vector<ros::Time> last_update;
 
   boost::shared_ptr<boost::thread> runThread_;
 
   void run()
   {
-    ros::Rate my_rate(10);
+    ros::Rate my_rate(50);
 
     while (!stopRequest)
     {
       os.run();
       for (int i = 0; i < os.server.MAX_BAT_COUNT; ++i)
       {
-        present[i] = os.server.battery[i].present;
-        charging[i] = os.server.battery[i].charging;
+        present[i]     = os.server.battery[i].present;
+        charging[i]    = os.server.battery[i].charging;
         discharging[i] = os.server.battery[i].discharging;
-        inhibited[i] = os.server.battery[i].inhibited;
+        inhibited[i]   = os.server.battery[i].inhibited;
+        last_update[i] = os.server.battery[i].last_battery_update;
       }
         
       my_rate.sleep();
@@ -54,8 +90,8 @@ private:
   }
 
 public:
-  BatteryServerChecker(int id, const string &dev):
-    id_(id), device_(dev), os(id, 0), stopRequest(false)
+  BatteryServerChecker(int id, const string &dev, int timeout):
+    id_(id), device_(dev), timeout_(timeout), os(id, 0), stopRequest(false)
   {
     os.initialize(dev);
 
@@ -63,6 +99,7 @@ public:
     charging.resize(os.server.MAX_BAT_COUNT);
     discharging.resize(os.server.MAX_BAT_COUNT);
     inhibited.resize(os.server.MAX_BAT_COUNT);
+    last_update.resize(os.server.MAX_BAT_COUNT);
   }
 
   void start()
@@ -84,26 +121,33 @@ public:
     bool charge_ok = true;
     bool discharge_ok = true;
 
+    // All batteries must have updated in past 15s
+    bool stale = false;
+
     for (int i = 0; i < os.server.MAX_BAT_COUNT; ++i)
     {
-      ok = ok && present[i]; // && !inhibited[i];
+      ok = ok && present[i]; 
       charge_ok = charging[i] == charging[0] && charge_ok;
       discharge_ok = discharging[i] == discharging[0] && discharge_ok;
+      stale = ((ros::Time::now() - last_update[i]).toSec() > 15) || stale;
     }
 
-    return ok && charge_ok && discharge_ok;
+    return ok && charge_ok && discharge_ok && !stale;
   }
 
   string getStatus() const
   {
     stringstream ss;
-    ss.str("");
+    ss.str("Device: ");
+    ss << device_ << "\n";
     for (int i = 0; i < os.server.MAX_BAT_COUNT; ++i)
       {
 	ss << "\tBattery " << i << ":\n";
-	ss << "\t\tPresent: " << (present[i] ? "OK" : "No") << "\n";
+	ss << "\t\tPresent: " << (present[i] ? "Yes" : "NO") << "\n";
 	ss << "\t\tCharging: " << (charging[i] ? "Yes" : "No") << "\n";
 	ss << "\t\tDischarging: " << (discharging[i] ? "Yes" : "No") << "\n";
+	ss << "\t\tInhibited: " << (inhibited[i] ? "Yes" : "No") << "\n";
+        ss << "\t\tTime Since Update: " << (ros::Time::now() - last_update[i]).toSec() << "\n";
       }
     return ss.str();
   }
@@ -111,14 +155,14 @@ public:
 
 int main(int argc, char** argv)
 {
-  int duration;
-  int min_duration;
+  int duration, min_duration, timeout;
   po::options_description desc("battery_check port1 port2 ... [options]");
   desc.add_options()
     ("help,h", "Print help message and exit")
     ("verbose,v", "Verbose battery output")
-    ("duration,d", po::value<int>(&duration)->default_value(30), "Maximum duration of test")
-    ("min-duration,m", po::value<int>(&min_duration)->default_value(5), "Minimum duration of test")
+    ("timeout,t", po::value<int>(&timeout)->default_value(15), "Timeout before stale")
+    ("duration,d", po::value<int>(&duration)->default_value(60), "Maximum duration of test")
+    ("min-duration,m", po::value<int>(&min_duration)->default_value(20), "Minimum duration of test")
     ("port", po::value<vector<string> >(), "Battery ports to check");
 
   po::positional_options_description p;
@@ -147,8 +191,10 @@ int main(int argc, char** argv)
 
   if (verbose)
   {
+    cout << "Checking ports: ";
     for (it = ports.begin(); it != ports.end(); ++it)
-      cout << "Checking port: " << *it << "\n";
+      cout << *it << ", ";
+    cout << "\n";
   }
 
   if (verbose)
@@ -157,9 +203,12 @@ int main(int argc, char** argv)
   vector<boost::shared_ptr<BatteryServerChecker> > checkers;
   for (uint i = 0; i < ports.size(); ++i)
   {    
-    checkers.push_back(boost::shared_ptr<BatteryServerChecker>(new BatteryServerChecker(i, ports[i])));
+    checkers.push_back(boost::shared_ptr<BatteryServerChecker>(new BatteryServerChecker(i, ports[i], timeout)));
     checkers[i]->start();                       
   }
+
+  if (verbose)
+    cout << "Battery monitoring started\n";
 
 
   ros::Rate my_rate(2);
@@ -178,7 +227,7 @@ int main(int argc, char** argv)
 
     if (ros::Time::now() - startTime > max)
       break;
-
+   
     bool now_ok = true;
     for (uint i = 0; i < checkers.size(); ++i)
       now_ok = checkers[i]->batteryOK() && now_ok;
@@ -189,9 +238,19 @@ int main(int argc, char** argv)
       break;
     }
   }
-  
+
+  if (verbose)
+    cout << "Stopping battery monitors\n";
+ 
   for (uint i = 0; i < checkers.size(); ++i)
     checkers[i]->stop();
+ 
+  if (verbose)
+  {
+    fprintf(stderr, "Battery status reports:\n");
+    for (uint i = 0; i < checkers.size(); ++i)
+      cerr << checkers[i]->getStatus().c_str();
+  }
 
   if (all_ok)
   {
@@ -199,17 +258,10 @@ int main(int argc, char** argv)
     return 0;
   }
 
-  fprintf(stderr, "Not all batteries reported.\n");
+  fprintf(stderr, "Not all batteries reported OK.\n");
   cout << "Status: \n";
   for (uint i = 0; i < checkers.size(); ++i)
-    cout << "\tBattery " << i << ": " << (checkers[i]->batteryOK() ? string("OK") : string("No report")) << "\n";
+    cout << "\tDevice " << i << ": " << (checkers[i]->batteryOK() ? string("OK") : string("Error")) << "\n";
   
-  if (verbose)
-    {
-      fprintf(stderr, "Battery error reports:\n");
-      for (uint i = 0; i < checkers.size(); ++i)
-	cerr << checkers[i]->getStatus().c_str();
-    }
-
   return 1;
 }
