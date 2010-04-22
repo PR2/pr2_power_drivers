@@ -70,6 +70,9 @@ class server
         serial_device = dev;
       }
 
+      private_handle.param("lag_timeout", lag_timeout_, 60);
+      private_handle.param("stale_timeout", stale_timeout_, 120);
+
       //
       //printf("device=%s  debug_level=%d\n", argv[1], atoi(argv[2]));
       //cout << "device=" << serial_device <<  "  debug_level=" << debug_level << endl;
@@ -96,6 +99,8 @@ class server
     std::string serial_device;
     volatile bool stopRequest;
     boost::shared_ptr<boost::thread> myThread;
+    int lag_timeout_, stale_timeout_;
+
 
     void run()
     {
@@ -112,7 +117,7 @@ class server
       ros::Rate rate(100);   //set the rate we scan the device for input
       diagnostic_msgs::DiagnosticArray msg_out;
       diagnostic_updater::DiagnosticStatusWrapper stat;
-      Time lastTime, currentTime;
+      Time lastTime, currentTime, startTime;
       Duration MESSAGE_TIME(2,0);    //the message output rate
       ocean os( majorID, debug_level);
       os.initialize(serial_device.c_str());
@@ -121,6 +126,7 @@ class server
       oldserver.battery.resize(4);
 
       lastTime = Time::now();
+      startTime = Time::now();
 
       while(handle.ok() && (stopRequest == false))
       {
@@ -183,16 +189,24 @@ class server
 
           for(int xx = 0; xx < os.server.MAX_BAT_COUNT; ++xx)
           {
-            if(os.server.battery[xx].present)
-            {
-              stat.values.clear();
-
-              ss.str("");
-              ss << "Smart Battery " << majorID << "." << xx;
-              stat.name = ss.str();
-              stat.level = 0;
-              stat.message = "OK";
+            stat.values.clear();
             
+            ss.str("");
+            ss << "Smart Battery " << majorID << "." << xx;
+            stat.name = ss.str();
+            stat.level = diagnostic_msgs::DiagnosticStatus::OK;
+            stat.message = "OK";
+
+            if(!os.server.battery[xx].present)
+            {
+              stat.add("Battery Present", "False");
+              stat.level = diagnostic_msgs::DiagnosticStatus::ERROR;
+              stat.message = "Not present";
+               
+            }
+            else
+            {
+              stat.add("Battery Present", "True");
               stat.add("Charging", (os.server.battery[xx].charging) ? "True":"False");
               stat.add("Discharging", (os.server.battery[xx].discharging) ? "True":"False");
               stat.add("Power Present", (os.server.battery[xx].power_present) ? "True":"False");
@@ -235,7 +249,7 @@ class server
                       stat.message = warn.str();
                     }
 
-                    stat.add( "Temperature (C)", celsius);
+                    stat.add("Temperature (C)", celsius);
                   }
                   else if(addr == 0x1c) // Serial Number
                   {
@@ -248,16 +262,37 @@ class server
                   }
                   else
                   {
-                      stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
+                    stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
                   }
                 }
               }
 
               elapsed = currentTime - os.server.battery[xx].last_battery_update;
-              stat.add("Time since update (s)", elapsed.toSec());
+              if (os.server.battery[xx].last_battery_update >= Time(1))
+                stat.add("Time since update (s)", elapsed.toSec());
+              else
+                stat.add("Time since update (s)", "N/A");
 
+              // Mark batteries as stale if they don't update
+              // Give them "grace period" on startup to update before we report error
+              bool updateGracePeriod = (currentTime - startTime).toSec() < stale_timeout_;
+              if (os.server.battery[xx].last_battery_update <= Time(1) && updateGracePeriod)
+              {
+                stat.level = diagnostic_msgs::DiagnosticStatus::WARN;
+                stat.message = "Waiting for battery update";
+              }
+              else if (stale_timeout_ > 0 && elapsed.toSec() > stale_timeout_)
+              {
+                stat.level = diagnostic_msgs::DiagnosticStatus::ERROR;
+                stat.message = "No updates";
+              }
+              else if (lag_timeout_ > 0 && elapsed.toSec() > lag_timeout_)
+              {
+                stat.level = diagnostic_msgs::DiagnosticStatus::WARN;
+                stat.message = "Stale updates";
+              }
+                          
               msg_out.status.push_back(stat);
-
             }
           }
 

@@ -10,6 +10,7 @@
 #include <poll.h>
 
 #include "ocean.h"
+#include "ros/time.h"
 
 #define FILE_LOGGING 0
 
@@ -74,6 +75,10 @@ ocean::ocean ( int id,  int debug)
   debuglevel = debug;
   server.id = id;
   server.battery.resize(4);
+
+  // Mark last update as "-1" for initial values
+  for (uint i = 0; i < server.battery.size(); ++i)
+    server.battery[i].last_battery_update = ros::Time(-1);
 }
 
 ocean::~ocean ()
