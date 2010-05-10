@@ -42,6 +42,7 @@
 #include <boost/bind.hpp>
 #include <boost/program_options.hpp>
 #include <boost/thread/thread.hpp>
+#include <boost/date_time.hpp>
 
 #include <ros/rate.h>
 #include <ros/time.h>
@@ -104,7 +105,9 @@ public:
   void stop()
   {
     stopRequest = true;
-    runThread_->join();
+ 
+    boost::posix_time::time_duration timeout = boost::posix_time::seconds(5);
+    runThread_->timed_join(timeout);
   }
 
   bool batteryOK() const
