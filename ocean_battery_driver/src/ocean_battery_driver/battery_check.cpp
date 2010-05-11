@@ -64,6 +64,7 @@ private:
   
   vector<bool> present;
   vector<bool> inhibited;
+  vector<bool> no_good;
   vector<ros::Time> last_update;
 
   boost::shared_ptr<boost::thread> runThread_;
@@ -79,6 +80,7 @@ private:
       {
         present[i]     = os.server.battery[i].present;
         inhibited[i]   = os.server.battery[i].inhibited;
+        no_good[i]     = os.server.battery[i].power_no_good;
         last_update[i] = os.server.battery[i].last_battery_update;
       }
         
@@ -94,6 +96,7 @@ public:
 
     present.resize(os.server.MAX_BAT_COUNT);
     inhibited.resize(os.server.MAX_BAT_COUNT);
+    no_good.resize(os.server.MAX_BAT_COUNT);
     last_update.resize(os.server.MAX_BAT_COUNT);
   }
 
@@ -112,18 +115,20 @@ public:
 
   bool batteryOK() const
   {
-    bool ok = true;
+    bool ok = true; // Checks to make sure OK
+    bool ng = false; // Checks to make sure they're good
 
-    // All batteries must have updated within timeout
-    bool stale = false;
+
+    bool stale = false; // All batteries must have updated within timeout
 
     for (int i = 0; i < os.server.MAX_BAT_COUNT; ++i)
     {
       ok = ok && present[i]; 
+      ng = ng || no_good[i];
       stale = ((ros::Time::now() - last_update[i]).toSec() > timeout_) || stale;
     }
 
-    return ok && !stale;
+    return ok && !stale && !ng;
   }
 
   string getStatus() const
@@ -135,6 +140,7 @@ public:
 	ss << "\tBattery " << i << ":\n";
 	ss << "\t\tPresent: " << (present[i] ? "Yes" : "No") << "\n";
 	ss << "\t\tInhibited: " << (inhibited[i] ? "Yes" : "No") << "\n";
+	ss << "\t\tNo Good: " << (no_good[i] ? "Yes" : "No") << "\n";
         ss << "\t\tHas updated: " << (last_update[i] > ros::Time(1) ? "Yes" : "No") << "\n";
         ss << "\t\tTime Since Update: " << (ros::Time::now() - last_update[i]).toSec() << "\n";
       }
