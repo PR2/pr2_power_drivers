@@ -201,6 +201,8 @@ int main(int argc, char** argv)
   if (verbose)
     cout << "Running battery check. Waiting for battery drivers to initialize\n";
 
+  ros::Time::init();
+
   vector<boost::shared_ptr<BatteryServerChecker> > checkers;
   for (uint i = 0; i < ports.size(); ++i)
   {    
