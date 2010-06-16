@@ -64,14 +64,14 @@ private:
   
   vector<bool> present;
   vector<bool> inhibited;
-  vector<ros::WallTime> last_update;
   vector<bool> no_good;
+  vector<ros::Time> last_update;
 
   boost::shared_ptr<boost::thread> runThread_;
 
   void run()
   {
-    ros::WallRate my_rate(50);
+    ros::Rate my_rate(50);
 
     while (!stopRequest)
     {
@@ -81,9 +81,7 @@ private:
         present[i]     = os.server.battery[i].present;
         inhibited[i]   = os.server.battery[i].inhibited;
         no_good[i]     = os.server.battery[i].power_no_good;
-
-        ros::Time &update_time = os.server.battery[i].last_battery_update;
-        last_update[i] = ros::WallTime(update_time.sec, update_time.nsec);
+        last_update[i] = os.server.battery[i].last_battery_update;
       }
         
       my_rate.sleep();
@@ -126,8 +124,8 @@ public:
     for (int i = 0; i < os.server.MAX_BAT_COUNT; ++i)
     {
       ok = ok && present[i]; 
-      stale = ((ros::WallTime::now() - last_update[i]).toSec() > timeout_) || stale;
       ng = ng || no_good[i];
+      stale = ((ros::Time::now() - last_update[i]).toSec() > timeout_) || stale;
     }
 
     return ok && !stale && !ng;
@@ -143,8 +141,8 @@ public:
 	ss << "\t\tPresent: " << (present[i] ? "Yes" : "No") << "\n";
 	ss << "\t\tInhibited: " << (inhibited[i] ? "Yes" : "No") << "\n";
 	ss << "\t\tNo Good: " << (no_good[i] ? "Yes" : "No") << "\n";
-        ss << "\t\tHas updated: " << (last_update[i] > ros::WallTime(1) ? "Yes" : "No") << "\n";
-        ss << "\t\tTime Since Update: " << (ros::WallTime::now() - last_update[i]).toSec() << "\n";
+        ss << "\t\tHas updated: " << (last_update[i] > ros::Time(1) ? "Yes" : "No") << "\n";
+        ss << "\t\tTime Since Update: " << (ros::Time::now() - last_update[i]).toSec() << "\n";
       }
     return ss.str();
   }
@@ -203,6 +201,8 @@ int main(int argc, char** argv)
   if (verbose)
     cout << "Running battery check. Waiting for battery drivers to initialize\n";
 
+  ros::Time::init();
+
   vector<boost::shared_ptr<BatteryServerChecker> > checkers;
   for (uint i = 0; i < ports.size(); ++i)
   {    
@@ -213,21 +213,21 @@ int main(int argc, char** argv)
   if (verbose)
     cout << "Battery monitoring started\n";
 
-  ros::WallRate my_rate(2);
-  ros::WallTime startTime = ros::WallTime::now();
+  ros::Rate my_rate(2);
+  ros::Time startTime = ros::Time::now();
 
-  ros::WallDuration min(min_duration);
-  ros::WallDuration max(duration);
+  ros::Duration min(min_duration);
+  ros::Duration max(duration);
 
   bool all_ok = false;
   while (true)
   {
     my_rate.sleep();
     
-    if (ros::WallTime::now() - startTime < min)
+    if (ros::Time::now() - startTime < min)
       continue;
 
-    if (ros::WallTime::now() - startTime > max)
+    if (ros::Time::now() - startTime > max)
       break;
    
     bool now_ok = true;
