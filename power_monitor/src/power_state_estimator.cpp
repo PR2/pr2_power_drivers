@@ -75,7 +75,7 @@ PowerStateEstimate FuelGaugePowerStateEstimator::estimate(const ros::Time& t)
 
 // AdvancedPowerStateEstimator
 
-const std::string AdvancedPowerStateEstimator::DEFAULT_LOG_FILE = "/hwlog/power_monitor/power.log";
+const std::string AdvancedPowerStateEstimator::DEFAULT_LOG_FILE = "/var/ros/power_monitor/power.log";
 
 AdvancedPowerStateEstimator::AdvancedPowerStateEstimator()
 {
