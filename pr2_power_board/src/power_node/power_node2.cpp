@@ -60,6 +60,8 @@
 #include "rosconsole/macros_generated.h"
 #include "ros/ros.h"
 
+#define TEMP_WARN 60
+
 using namespace std;
 namespace po = boost::program_options;
 
@@ -640,13 +642,18 @@ void PowerBoard::sendMessages()
 
       if( (ros::Time::now() - devicePtr->message_time) > TIMEOUT )
       {
-        stat.summary(2, "No Updates");
+        stat.summary(diagnostic_msgs::DiagnosticStatus::ERROR, "No Updates");
       }
       else
       {
-        stat.summary(0, "Running");
+        stat.summary(diagnostic_msgs::DiagnosticStatus::OK, "Running");
       }
       const StatusStruct *status = &pmesg->status;
+
+      if (status->fan0_speed == 0)
+      {
+	stat.summary(diagnostic_msgs::DiagnosticStatus::WARN, "Base Fan Off");
+      }
 
       //ROS_DEBUG("Device %u", i);
       //ROS_DEBUG(" Serial       = %u", pmesg->header.serial_num);
@@ -677,7 +684,12 @@ void PowerBoard::sendMessages()
 
       //ROS_DEBUG(" Board Temp   = %f", status->ambient_temp);
       stat.add("Board Temperature", status->ambient_temp);
-      
+
+      if (status->ambient_temp > TEMP_WARN) 
+      { 
+	stat.summary(diagnostic_msgs::DiagnosticStatus::WARN, "High Temp");
+      } 
+
       //ROS_DEBUG(" Fan Speeds:");
       //ROS_DEBUG("  Fan 0       = %u", status->fan0_speed);
       stat.add("Base Fan Speed", status->fan0_speed);
