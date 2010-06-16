@@ -291,6 +291,13 @@ class server
                 stat.level = diagnostic_msgs::DiagnosticStatus::WARN;
                 stat.message = "Stale updates";
               }
+
+	      // Report an error if battery is "No Good"
+	      if (os.server.battery[xx].power_no_good)
+		{
+		  stat.level = diagnostic_msgs::DiagnosticStatus::ERROR;
+		  stat.message = "Battery is \"No Good\"";
+		}
                           
               msg_out.status.push_back(stat);
             }
