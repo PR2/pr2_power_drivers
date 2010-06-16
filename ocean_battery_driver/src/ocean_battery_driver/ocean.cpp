@@ -610,7 +610,8 @@ unsigned int ocean::processSystem (int count, char *field[])
    *  6  ASCII text message
    *
    */
-  server.last_system_update = ros::Time::now();
+  ros::WallTime now_time = ros::WallTime::now();
+  server.last_system_update = ros::Time(now_time.sec, now_time.nsec);
 
   for( int index = 1; index < count; )
   {
@@ -663,7 +664,8 @@ unsigned int ocean::processController (int count, char *field[])
    *
    */
 
-  server.last_controller_update = ros::Time::now();
+  ros::WallTime now_time = ros::WallTime::now();
+  server.last_controller_update = ros::Time(now_time.sec, now_time.nsec);
 
   for( int index = 1; index < count; )
   {
@@ -775,7 +777,8 @@ unsigned int ocean::processBattery (int count, char *field[])
   report (5, "processBattery count=%d \n", count);
   report (5, "currentBattery=%d \n", battery);
 
-  server.battery[battery].last_battery_update = ros::Time::now();
+  ros::WallTime now_time = ros::WallTime::now();
+  server.battery[battery].last_battery_update = ros::Time(now_time.sec, now_time.nsec);
   --count;  //get past sentence type
 
   int32_t regNumber;
@@ -796,7 +799,7 @@ unsigned int ocean::processBattery (int count, char *field[])
     {
       server.battery[battery].battery_register[regNumber] = value;
       server.battery[battery].battery_update_flag[regNumber] = 1;
-      server.battery[battery].battery_register_update[regNumber] = ros::Time::now();
+      server.battery[battery].battery_register_update[regNumber] = ros::Time(now_time.sec, now_time.nsec);
     }
 
     count -= 2;
