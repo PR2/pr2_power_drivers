@@ -216,33 +216,37 @@ bool AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
         return false;
     }
 
-    int line_num = 1;
+    int line_num = 0;
     while (true)
     {
-        getline(f, line);
+		line_num++;
+
+		getline(f, line);
         if (!f.good())
             break;
 
         vector<string> tokens;
         tokenize(line, tokens, ",");
 
-        if (tokens.size() != 7)
-        {
-            ROS_WARN("Invalid line %d in log file: %s.  Aborting read.", line_num, log_filename_.c_str());
-            break;
-        }
+		try
+		{
+			if (tokens.size() == 7)
+			{
+				LogRecord record;
+				record.sec                          = boost::lexical_cast<uint32_t>(tokens[0]);
+				record.master_state                 = boost::lexical_cast<int>(tokens[1]);
+				record.charging                     = boost::lexical_cast<int>(tokens[2]);
+				record.total_power                  = boost::lexical_cast<float>(tokens[3]);
+				record.min_voltage                  = boost::lexical_cast<float>(tokens[4]);
+				record.min_relative_state_of_charge = boost::lexical_cast<unsigned int>(tokens[5]);
+				record.total_remaining_capacity     = boost::lexical_cast<float>(tokens[6]);
+				log.push_back(record);
+				continue;
+			}
+		}
+		catch (const boost::bad_lexical_cast& ex) { }
 
-        LogRecord record;
-        record.sec                          = boost::lexical_cast<uint32_t>(tokens[0]);
-        record.master_state                 = boost::lexical_cast<int>(tokens[1]);
-        record.charging                     = boost::lexical_cast<int>(tokens[2]);
-        record.total_power                  = boost::lexical_cast<float>(tokens[3]);
-        record.min_voltage                  = boost::lexical_cast<float>(tokens[4]);
-        record.min_relative_state_of_charge = boost::lexical_cast<unsigned int>(tokens[5]);
-        record.total_remaining_capacity     = boost::lexical_cast<float>(tokens[6]);
-        log.push_back(record);
-
-        line_num++;
+		ROS_WARN("Invalid line %d in log file: %s.", line_num, log_filename_.c_str());
     }
 
     f.close();

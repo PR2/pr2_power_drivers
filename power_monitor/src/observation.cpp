@@ -139,7 +139,7 @@ ros::Duration PowerObservation::getMinTimeToEmpty(const ros::Time& t) const
 }
 
 /**
-  * Returns ros::Duration(-1, 0) if all no batteries are charging.
+  * Returns ros::Duration(-1, 0) if no batteries are charging.
   */
 ros::Duration PowerObservation::getMaxTimeToFull(const ros::Time& t) const
 {
