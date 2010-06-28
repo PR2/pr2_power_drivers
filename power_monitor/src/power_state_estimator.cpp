@@ -140,11 +140,11 @@ PowerStateEstimate AdvancedPowerStateEstimator::estimate(const ros::Time& t)
         float        min_rem_cap = 999999.9;
         for (vector<LogRecord>::const_iterator i = log_.begin(); i != log_.end(); i++)
         {
-	    if ((*i).master_state == pr2_msgs::PowerBoardState::MASTER_SHUTDOWN)
-	    {
-	        min_rsc     = min(min_rsc,     (*i).min_relative_state_of_charge);
-	        min_rem_cap = min(min_rem_cap, (*i).total_remaining_capacity);
-	    }
+            if ((*i).master_state == pr2_msgs::PowerBoardState::MASTER_SHUTDOWN)
+            {
+                min_rsc     = min(min_rsc,     (*i).min_relative_state_of_charge);
+                min_rem_cap = min(min_rem_cap, (*i).total_remaining_capacity);
+            }
         }
 
         // @todo: should filter the noisy current
@@ -167,10 +167,10 @@ PowerStateEstimate AdvancedPowerStateEstimator::estimate(const ros::Time& t)
     {
         // No history. Resort to fuel gauge method
         ROS_DEBUG("No history (resorting to fuel gauge)");
-	ROS_DEBUG("AC count: %d", obs_.getAcCount());
-	ROS_DEBUG("current reported relative state of charge: %d", obs_.getMinRelativeStateOfCharge());
-	ROS_DEBUG("maximum reported time-to-full: %d", obs_.getMaxTimeToFull(t).sec);
-	ROS_DEBUG("minimum reported time-to-empty: %d", obs_.getMinTimeToEmpty(t).sec);
+        ROS_DEBUG("AC count: %d", obs_.getAcCount());
+        ROS_DEBUG("current reported relative state of charge: %d", obs_.getMinRelativeStateOfCharge());
+        ROS_DEBUG("maximum reported time-to-full: %d", obs_.getMaxTimeToFull(t).sec);
+        ROS_DEBUG("minimum reported time-to-empty: %d", obs_.getMinTimeToEmpty(t).sec);
 
         ps.time_remaining = obs_.getAcCount() > 0 ? obs_.getMaxTimeToFull(t) : obs_.getMinTimeToEmpty(t);
         ps.relative_capacity = obs_.getMinRelativeStateOfCharge();
@@ -208,9 +208,11 @@ bool AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
         return false;
     }
 
-    int line_num = 1;
+    int line_num = 0;
     while (true)
     {
+        line_num++;
+
         getline(f, line);
         if (!f.good())
             break;
@@ -218,23 +220,25 @@ bool AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
         vector<string> tokens;
         tokenize(line, tokens, ",");
 
-        if (tokens.size() != 7)
+        try
         {
-            ROS_WARN("Invalid line %d in log file: %s.  Aborting read.", line_num, log_filename_.c_str());
-            break;
+            if (tokens.size() == 7)
+            {
+                LogRecord record;
+                record.sec                          = boost::lexical_cast<uint32_t>(tokens[0]);
+                record.master_state                 = boost::lexical_cast<int>(tokens[1]);
+                record.charging                     = boost::lexical_cast<int>(tokens[2]);
+                record.total_power                  = boost::lexical_cast<float>(tokens[3]);
+                record.min_voltage                  = boost::lexical_cast<float>(tokens[4]);
+                record.min_relative_state_of_charge = boost::lexical_cast<unsigned int>(tokens[5]);
+                record.total_remaining_capacity     = boost::lexical_cast<float>(tokens[6]);
+                log.push_back(record);
+                continue;
+            }
         }
+        catch (const boost::bad_lexical_cast& ex) { }
 
-        LogRecord record;
-        record.sec                          = boost::lexical_cast<uint32_t>(tokens[0]);
-        record.master_state                 = boost::lexical_cast<int>(tokens[1]);
-        record.charging                     = boost::lexical_cast<int>(tokens[2]);
-        record.total_power                  = boost::lexical_cast<float>(tokens[3]);
-        record.min_voltage                  = boost::lexical_cast<float>(tokens[4]);
-        record.min_relative_state_of_charge = boost::lexical_cast<unsigned int>(tokens[5]);
-        record.total_remaining_capacity     = boost::lexical_cast<float>(tokens[6]);
-        log.push_back(record);
-
-        line_num++;
+        ROS_WARN("Invalid line %d in log file: %s.", line_num, log_filename_.c_str());
     }
 
     f.close();
@@ -270,9 +274,9 @@ bool AdvancedPowerStateEstimator::saveObservation(const PowerObservation& obs) c
             // Directory doesn't exist - create
             ROS_INFO("Creating log file directory: %s", log_dir.c_str());
 
-	    mode_t old_umask = umask(0);
-	    int res = mkdir(log_dir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
-	    umask(old_umask);
+            mode_t old_umask = umask(0);
+            int res = mkdir(log_dir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+            umask(old_umask);
             if (res != 0)      // create directory with permissions: rwxrwxrwx
             {
                 ROS_ERROR("Error creating power monitor log file directory");
