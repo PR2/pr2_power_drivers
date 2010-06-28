@@ -204,7 +204,7 @@ bool AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
     getline(f, line);
     if (!f.good())
     {
-        ROS_WARN("Error reading header from log file: %s", log_filename_.c_str());
+        ROS_ERROR("Error reading header from log file: %s", log_filename_.c_str());
         return false;
     }
 
@@ -238,7 +238,7 @@ bool AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
         }
         catch (const boost::bad_lexical_cast& ex) { }
 
-        ROS_WARN("Invalid line %d in log file: %s.", line_num, log_filename_.c_str());
+        ROS_ERROR("Invalid line %d in log file: %s.", line_num, log_filename_.c_str());
     }
 
     f.close();
