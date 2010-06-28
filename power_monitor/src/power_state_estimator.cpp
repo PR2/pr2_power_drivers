@@ -99,8 +99,8 @@ void AdvancedPowerStateEstimator::recordObservation(const PowerObservation& obs)
     PowerStateEstimator::recordObservation(obs);
 
     // Ignore any observation with less than 16 batteries
-    //if (obs.getBatteries().size() != 16)
-    //    return;
+    if (obs.getBatteries().size() != 16)
+        return;
 
     LogRecord record;
     record.sec                          = obs.getStamp().sec;
