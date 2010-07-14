@@ -70,7 +70,7 @@ PowerMonitor::PowerMonitor() : master_state_(-1)
     map<string, PowerStateEstimator::Type>::const_iterator i = estimator_types_.find(estimator_type_str);
     if (i == estimator_types_.end())
     {
-        // Request estimator is unknown. Default to first estimator
+        // Requested estimator is unknown. Default to first estimator
         string first_estimator_type_str = estimator_types_.begin()->first;
         ROS_ERROR("Unknown power state estimator type: %s. Defaulting to %s", estimator_type_str.c_str(), first_estimator_type_str.c_str());
         setActiveEstimator(estimator_types_.begin()->second);

@@ -111,7 +111,6 @@ private:
 
     static void tokenize(const std::string& str, std::vector<std::string>& tokens, const std::string& delimiters=",");
 
-    bool logFileExists() const;
     bool readObservations(std::vector<LogRecord>& log);
     bool saveObservation(const PowerObservation& obs) const;
     bool hasEverDischarged() const;
