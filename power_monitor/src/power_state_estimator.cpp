@@ -34,9 +34,11 @@
 
 #include "power_state_estimator.h"
 
+#include <errno.h>
 #include <stdlib.h>
 #include <fstream>
 #include <iostream>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -138,11 +140,11 @@ PowerStateEstimate AdvancedPowerStateEstimator::estimate(const ros::Time& t)
         float        min_rem_cap = 999999.9;
         for (vector<LogRecord>::const_iterator i = log_.begin(); i != log_.end(); i++)
         {
-	    if ((*i).master_state == pr2_msgs::PowerBoardState::MASTER_SHUTDOWN)
-	    {
-	        min_rsc     = min(min_rsc,     (*i).min_relative_state_of_charge);
-	        min_rem_cap = min(min_rem_cap, (*i).total_remaining_capacity);
-	    }
+            if ((*i).master_state == pr2_msgs::PowerBoardState::MASTER_SHUTDOWN)
+            {
+                min_rsc     = min(min_rsc,     (*i).min_relative_state_of_charge);
+                min_rem_cap = min(min_rem_cap, (*i).total_remaining_capacity);
+            }
         }
 
         // @todo: should filter the noisy current
@@ -165,10 +167,10 @@ PowerStateEstimate AdvancedPowerStateEstimator::estimate(const ros::Time& t)
     {
         // No history. Resort to fuel gauge method
         ROS_DEBUG("No history (resorting to fuel gauge)");
-	ROS_DEBUG("AC count: %d", obs_.getAcCount());
-	ROS_DEBUG("current reported relative state of charge: %d", obs_.getMinRelativeStateOfCharge());
-	ROS_DEBUG("maximum reported time-to-full: %d", obs_.getMaxTimeToFull(t).sec);
-	ROS_DEBUG("minimum reported time-to-empty: %d", obs_.getMinTimeToEmpty(t).sec);
+        ROS_DEBUG("AC count: %d", obs_.getAcCount());
+        ROS_DEBUG("current reported relative state of charge: %d", obs_.getMinRelativeStateOfCharge());
+        ROS_DEBUG("maximum reported time-to-full: %d", obs_.getMaxTimeToFull(t).sec);
+        ROS_DEBUG("minimum reported time-to-empty: %d", obs_.getMinTimeToEmpty(t).sec);
 
         ps.time_remaining = obs_.getAcCount() > 0 ? obs_.getMaxTimeToFull(t) : obs_.getMinTimeToEmpty(t);
         ps.relative_capacity = obs_.getMinRelativeStateOfCharge();
@@ -191,16 +193,6 @@ void AdvancedPowerStateEstimator::tokenize(const string& str, vector<string>& to
     }
 }
 
-bool AdvancedPowerStateEstimator::logFileExists() const
-{
-    ifstream fin(log_filename_.c_str(), ios::in);
-    bool exists = !fin.fail();
-    if (exists)
-        fin.close();
-
-    return exists;
-}
-
 bool AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
 {
     ifstream f(log_filename_.c_str(), ios::in);
@@ -212,13 +204,15 @@ bool AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
     getline(f, line);
     if (!f.good())
     {
-        ROS_WARN("Error reading header from log file: %s", log_filename_.c_str());
+        ROS_ERROR("Error reading header from log file: %s", log_filename_.c_str());
         return false;
     }
 
-    int line_num = 1;
+    int line_num = 0;
     while (true)
     {
+        line_num++;
+
         getline(f, line);
         if (!f.good())
             break;
@@ -226,23 +220,25 @@ bool AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
         vector<string> tokens;
         tokenize(line, tokens, ",");
 
-        if (tokens.size() != 7)
+        try
         {
-            ROS_WARN("Invalid line %d in log file: %s.  Aborting read.", line_num, log_filename_.c_str());
-            break;
+            if (tokens.size() == 7)
+            {
+                LogRecord record;
+                record.sec                          = boost::lexical_cast<uint32_t>(tokens[0]);
+                record.master_state                 = boost::lexical_cast<int>(tokens[1]);
+                record.charging                     = boost::lexical_cast<int>(tokens[2]);
+                record.total_power                  = boost::lexical_cast<float>(tokens[3]);
+                record.min_voltage                  = boost::lexical_cast<float>(tokens[4]);
+                record.min_relative_state_of_charge = boost::lexical_cast<unsigned int>(tokens[5]);
+                record.total_remaining_capacity     = boost::lexical_cast<float>(tokens[6]);
+                log.push_back(record);
+                continue;
+            }
         }
+        catch (const boost::bad_lexical_cast& ex) { }
 
-        LogRecord record;
-        record.sec                          = boost::lexical_cast<uint32_t>(tokens[0]);
-        record.master_state                 = boost::lexical_cast<int>(tokens[1]);
-        record.charging                     = boost::lexical_cast<int>(tokens[2]);
-        record.total_power                  = boost::lexical_cast<float>(tokens[3]);
-        record.min_voltage                  = boost::lexical_cast<float>(tokens[4]);
-        record.min_relative_state_of_charge = boost::lexical_cast<unsigned int>(tokens[5]);
-        record.total_remaining_capacity     = boost::lexical_cast<float>(tokens[6]);
-        log.push_back(record);
-
-        line_num++;
+        ROS_ERROR("Invalid line %d in log file: %s.", line_num, log_filename_.c_str());
     }
 
     f.close();
@@ -252,7 +248,13 @@ bool AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
 
 bool AdvancedPowerStateEstimator::saveObservation(const PowerObservation& obs) const
 {
-    bool exists = logFileExists();
+    // Check if the log file exists
+    bool exists = false;
+    FILE* f = fopen(log_filename_.c_str(), "r");
+    if (f) {
+        fclose(f);
+        exists = true;
+    }
 
     if (!exists)
     {
@@ -271,7 +273,11 @@ bool AdvancedPowerStateEstimator::saveObservation(const PowerObservation& obs) c
         {
             // Directory doesn't exist - create
             ROS_INFO("Creating log file directory: %s", log_dir.c_str());
-            if (mkdir(log_dir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IWOTH | S_IXOTH) != 0)      // create directory with permissions: rwxrwxrwx
+
+            mode_t old_umask = umask(0);
+            int res = mkdir(log_dir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+            umask(old_umask);
+            if (res != 0)      // create directory with permissions: rwxrwxrwx
             {
                 ROS_ERROR("Error creating power monitor log file directory");
                 return false;
@@ -280,32 +286,27 @@ bool AdvancedPowerStateEstimator::saveObservation(const PowerObservation& obs) c
     }
 
     // Open the log file for appending
-    ofstream f(log_filename_.c_str(), ios::out | ios::app);
-    if (f.fail())
+    mode_t old_umask = umask(0);
+    int fd = open(log_filename_.c_str(), O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    umask(old_umask);
+    if (fd == -1)
     {
-        ROS_ERROR("Error opening log file: %s", log_filename_.c_str());
+        ROS_ERROR("Error opening log file %s: %s", log_filename_.c_str(), strerror(errno));
+        return false;
+    }
+    f = fdopen(fd, "a");
+    if (f == NULL)
+    {
+        ROS_ERROR("Error opening log file for appending: %s", log_filename_.c_str());
         return false;
     }
 
+    flock(fd, LOCK_SH);
     if (!exists)
-    {
-        // Change permissions to rw-rw-rw-
-        chmod(log_filename_.c_str(), S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-
-        // Write header row
-        f << "secs,master_state,charging,total_power,min_voltage,min_relative_state_of_charge,total_remaining_capacity" << endl;
-    }
-
-    // Append the observation row
-    f << obs.getStamp().sec << ","
-      << (int) obs.getMasterState() << ","
-      << obs.getAcCount() << ","
-      << obs.getTotalPower() << ","
-      << obs.getMinVoltage() << ","
-      << obs.getMinRelativeStateOfCharge() << ","
-      << obs.getTotalRemainingCapacity() << endl;
-
-    f.close();
+        fprintf(f, "secs,master_state,charging,total_power,min_voltage,min_relative_state_of_charge,total_remaining_capacity\n");
+    fprintf(f, "%d,%d,%d,%.3f,%.3f,%d,%.3f\n", obs.getStamp().sec, (int) obs.getMasterState(), obs.getAcCount(), obs.getTotalPower(), obs.getMinVoltage(), obs.getMinRelativeStateOfCharge(), obs.getTotalRemainingCapacity());
+    fclose(f);
+    close(fd);
 
     return true;
 }
