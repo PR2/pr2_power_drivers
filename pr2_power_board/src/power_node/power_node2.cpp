@@ -636,9 +636,11 @@ void PowerBoard::sendMessages()
 
       const PowerMessage *pmesg = &devicePtr->getPowerMessage();
       
-      ostringstream ss;
+      ostringstream ss, ss2;
       ss << "Power board " << pmesg->header.serial_num;
+      ss2 << "68050070" << pmesg->header.serial_num;
       stat.name = ss.str();
+      stat.hardware_id = ss2.str();
 
       if( (ros::Time::now() - devicePtr->message_time) > TIMEOUT )
       {
@@ -652,7 +654,7 @@ void PowerBoard::sendMessages()
 
       if (status->fan0_speed == 0)
       {
-	stat.summary(diagnostic_msgs::DiagnosticStatus::WARN, "Base Fan Off");
+	stat.summary(diagnostic_msgs::DiagnosticStatus::ERROR, "Base Fan Off");
       }
 
       //ROS_DEBUG("Device %u", i);
