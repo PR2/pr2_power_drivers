@@ -121,6 +121,7 @@ class server
       Duration MESSAGE_TIME(2,0);    //the message output rate
       ocean os( majorID, debug_level);
       os.initialize(serial_device.c_str());
+      //os.read_file(serial_device.c_str());
 
       pr2_msgs::BatteryServer oldserver;
       oldserver.battery.resize(4);
@@ -292,12 +293,12 @@ class server
                 stat.message = "Stale updates";
               }
 
-	      // Report an error if battery is "No Good"
-	      if (os.server.battery[xx].power_no_good)
-		{
-		  stat.level = diagnostic_msgs::DiagnosticStatus::ERROR;
-		  stat.message = "Battery is \"No Good\"";
-		}
+              // Report an error if battery is "No Good"
+              if (os.server.battery[xx].power_no_good)
+              {
+                stat.level = diagnostic_msgs::DiagnosticStatus::ERROR;
+                stat.message = "Battery is \"No Good\"";
+              }
                           
               msg_out.status.push_back(stat);
             }
