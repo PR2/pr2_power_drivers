@@ -39,7 +39,8 @@ class server
   public:
 
     server( const int &majorID, const std::string &dev, const int debug_level = 0 ) : 
-      majorID(majorID), debug_level(debug_level), serial_device("/dev/ttyUSB0"), stopRequest(false)
+      majorID(majorID), debug_level(debug_level), serial_device("/dev/ttyUSB0"), stopRequest(false),
+      has_warned_temp_alarm_(false), has_warned_no_good_(false)
     {
       std::stringstream ss;
 
@@ -100,7 +101,7 @@ class server
     volatile bool stopRequest;
     boost::shared_ptr<boost::thread> myThread;
     int lag_timeout_, stale_timeout_;
-
+    bool has_warned_temp_alarm_, has_warned_no_good_;
 
     void run()
     {
@@ -177,7 +178,7 @@ class server
           ss.str("");
           ss << "IBPS " << majorID;
           stat.name = ss.str();
-          stat.level = 0;
+          stat.level = diagnostic_msgs::DiagnosticStatus::OK;
           stat.message = "OK";
           
           stat.add("Time Remaining (min)", (os.server.time_left.toSec()/60));
@@ -245,9 +246,8 @@ class server
                     if(celsius > BATTERY_TEMP_WARN)
                     {
                       ostringstream warn;
-                      stat.level = 1;
                       warn << "High Temperature Warning > " << BATTERY_TEMP_WARN << "C";
-                      stat.message = warn.str();
+                      stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, warn.str());
                     }
 
                     stat.add("Temperature (C)", celsius);
@@ -278,27 +278,34 @@ class server
               // Give them "grace period" on startup to update before we report error
               bool updateGracePeriod = (currentTime - startTime).toSec() < stale_timeout_;
               if (os.server.battery[xx].last_battery_update <= Time(1) && updateGracePeriod)
-              {
-                stat.level = diagnostic_msgs::DiagnosticStatus::WARN;
-                stat.message = "Waiting for battery update";
-              }
+                stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Waiting for battery update");
               else if (stale_timeout_ > 0 && elapsed.toSec() > stale_timeout_)
-              {
-                stat.level = diagnostic_msgs::DiagnosticStatus::ERROR;
-                stat.message = "No updates";
-              }
+                stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, "No updates");
               else if (lag_timeout_ > 0 && elapsed.toSec() > lag_timeout_)
+                stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Stale updates");
+
+
+              // Check register 0x16 for OVER_TEMP_ALARM
+              // Warn if we've seen OVER_TEMP_ALARM in last 60 seconds
+              if (os.server.battery[xx].battery_update_flag[0x16] &&
+                  ros::Time::now() - os.server.battery[xx].battery_register_update[0x16] > ros::Duration(60.0) &&
+                  os.server.battery[xx].battery_register[0x16] & 0x1000)
               {
-                stat.level = diagnostic_msgs::DiagnosticStatus::WARN;
-                stat.message = "Stale updates";
+                stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Temperature alarm activated.");
+                if (!has_warned_temp_alarm_)
+                {
+                  ROS_WARN("Over temperature alarm reported on battery %d. Battery will not charge.", xx);
+                  has_warned_temp_alarm_ = true;
+                }
               }
 
-              // Report an error if battery is "No Good"
-              if (os.server.battery[xx].power_no_good)
-              {
-                stat.level = diagnostic_msgs::DiagnosticStatus::ERROR;
-                stat.message = "Battery is \"No Good\"";
-              }
+	      // Report a console warning if battery is "No Good"
+              // This may be a problem with the battery, but we're not sure.
+	      if (os.server.battery[xx].power_no_good && !has_warned_no_good_)
+		{
+                  ROS_WARN("Battery %d reports \"No Good\".", xx);
+                  has_warned_no_good_ = true;
+		}
                           
               msg_out.status.push_back(stat);
             }
