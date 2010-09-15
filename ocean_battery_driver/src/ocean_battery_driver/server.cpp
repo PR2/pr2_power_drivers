@@ -34,6 +34,12 @@ float toFloat(const int &value)
   return result;
 }
 
+float tempToCelcius(const int &iKelvin)
+{
+  float fKelvin = (float) (iKelvin * 0.1);
+  return (fKelvin - (float) 273.15);
+}
+
 class server
 {
   public:
@@ -204,7 +210,6 @@ class server
               stat.add("Battery Present", "False");
               stat.level = diagnostic_msgs::DiagnosticStatus::ERROR;
               stat.message = "Not present";
-               
             }
             else
             {
@@ -240,9 +245,7 @@ class server
                   }
                   else if(addr == 0x8)  //Address of Temperature
                   {
-                    int iKelvin = os.server.battery[xx].battery_register[addr];
-                    float fKelvin = (float) (iKelvin * 0.1);
-                    float celsius = fKelvin - (float) 273.15;
+                    float celsius = tempToCelcius(os.server.battery[xx].battery_register[addr]);
                     if(celsius > BATTERY_TEMP_WARN)
                     {
                       ostringstream warn;
@@ -285,19 +288,18 @@ class server
                 stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Stale updates");
 
 
-              // Check register 0x16 for OVER_TEMP_ALARM
-              // Warn if we've seen OVER_TEMP_ALARM in last 60 seconds
-              if (os.server.battery[xx].battery_update_flag[0x16] &&
-                  ros::Time::now() - os.server.battery[xx].battery_register_update[0x16] > ros::Duration(60.0) &&
-                  os.server.battery[xx].battery_register[0x16] & 0x1000)
-              {
-                stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Temperature alarm activated.");
-                if (!has_warned_temp_alarm_)
-                {
-                  ROS_WARN("Over temperature alarm reported on battery %d. Battery will not charge.", xx);
-                  has_warned_temp_alarm_ = true;
-                }
-              }
+              // Warn for over temp alarm
+	      // If power present and not charging, and temp >= 46C
+              if (os.server.battery[xx].power_present && !os.server.battery[xx].charging 
+		  && tempToCelcius(os.server.battery[xx].battery_register[0x8]) > 46.0)
+		{
+		  stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Charge Inhibited, High Temperature");
+		  if (!has_warned_temp_alarm_)
+		    {
+		      ROS_WARN("Over temperature alarm found on battery %d. Battery will not charge.", xx);
+		      has_warned_temp_alarm_ = true;
+		    }
+		}
 
 	      // Report a console warning if battery is "No Good"
               // This may be a problem with the battery, but we're not sure.
