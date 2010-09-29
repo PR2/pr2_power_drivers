@@ -289,8 +289,10 @@ class server
 
 
               // Warn for over temp alarm
-	      // If power present and not charging, and temp >= 46C
+	      // If power present and not charging, not full, and temp >= 46C
+	      // 0x0d is "Relative State of Charge"
               if (os.server.battery[xx].power_present && !os.server.battery[xx].charging 
+		  && os.server.battery[xx].battery_register[0x0d] < 90
 		  && tempToCelcius(os.server.battery[xx].battery_register[0x8]) > 46.0)
 		{
 		  stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Charge Inhibited, High Temperature");
@@ -300,6 +302,10 @@ class server
 		      has_warned_temp_alarm_ = true;
 		    }
 		}
+
+	      // Check for battery status code, not sure if this works.
+	      if (os.server.battery[xx].battery_register[0x16] & 0x1000)
+		  stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Over Temp Alarm");
 
 	      // Report a console warning if battery is "No Good"
               // This may be a problem with the battery, but we're not sure.
