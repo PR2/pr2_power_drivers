@@ -590,7 +590,8 @@ void PowerBoard::init()
   diags_pub = node_handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
   state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("state", 2, true);
 
-  battery_sub_ = node_handle.subscribe("battery/server2", 10, &PowerBoard::batteryCB, this);
+  ros::NodeHandle main_handle;
+  battery_sub_ = main_handle.subscribe("battery/server2", 10, &PowerBoard::batteryCB, this);
 }
 
 void PowerBoard::batteryCB(const pr2_msgs::BatteryServer2::ConstPtr &msgPtr)
