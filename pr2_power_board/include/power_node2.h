@@ -6,6 +6,7 @@
 #include "ros/ros.h"
 #include "pr2_power_board/PowerBoardCommand.h"
 #include "pr2_power_board/PowerBoardCommand2.h"
+#include "pr2_msgs/BatteryServer2.h"
 #include "boost/thread/mutex.hpp"
 
 class Interface 
@@ -71,12 +72,22 @@ class PowerBoard
     int send_command(int circuit_breaker, const std::string &command, unsigned flags);
     int requestMessage(const unsigned int message);
 
+    void checkFanSpeed(); // Check battery temperatures and send command for fan speed
+
   private:
     ros::NodeHandle node_handle;
     ros::ServiceServer service;
     ros::ServiceServer service2;
     ros::Publisher diags_pub;
     ros::Publisher state_pub;
+    ros::Subscriber battery_sub_;
+
+    std::map<int, float> battery_temps_;
+    int last_ambient_temp_;
+
+    int getFanDuty(); // Duty cycle to send to fan. 0 if no fan command
+  
+    void batteryCB(const pr2_msgs::BatteryServer2::ConstPtr &msgPtr);
 
     pr2_power_board::PowerBoardCommand::Request req_;
     pr2_power_board::PowerBoardCommand::Response res_;

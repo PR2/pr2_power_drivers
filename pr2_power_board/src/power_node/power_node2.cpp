@@ -61,6 +61,8 @@
 #include "ros/ros.h"
 
 #define TEMP_WARN 60
+#define TEMP_START_RAMP 40
+#define TEMP_STOP_RAMP 60
 
 using namespace std;
 namespace po = boost::program_options;
@@ -299,6 +301,10 @@ int PowerBoard::send_command( int circuit_breaker, const std::string &command, u
 
     ROS_DEBUG("circuit=%d command=%s flags=%x\n", circuit_breaker, command.c_str(), flags);
 
+    // Set fan duty based on battery temperature. #4763
+    int fan_duty = getFanDuty();
+    cmdmsg.command.fan0_command = fan_duty;
+    
     // Determine what command to send
     char command_enum = NONE;
     if (command == "start") {
@@ -342,6 +348,8 @@ int PowerBoard::send_command( int circuit_breaker, const std::string &command, u
     ROS_DEBUG("Sent command %s(%d), circuit %d", command.c_str(), command_enum, circuit_breaker);
 
   }
+
+
 
   errno = 0;
   //ROS_INFO("Send on %s", inet_ntoa(SendInterfaces[xx]->ifc_address.sin_addr));
@@ -552,7 +560,9 @@ int PowerBoard::collect_messages()
   return 0;
 }
 
-PowerBoard::PowerBoard( const ros::NodeHandle node_handle, const std::string &address_str ) : node_handle(node_handle)
+PowerBoard::PowerBoard( const ros::NodeHandle node_handle, const std::string &address_str ) : 
+  node_handle(node_handle),
+  last_ambient_temp_(0)
 {
   ROSCONSOLE_AUTOINIT;
   log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
@@ -579,6 +589,66 @@ void PowerBoard::init()
 
   diags_pub = node_handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
   state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("state", 2, true);
+
+  battery_sub_ = node_handle.subscribe("battery/server2", 10, &PowerBoard::batteryCB, this);
+}
+
+void PowerBoard::batteryCB(const pr2_msgs::BatteryServer2::ConstPtr &msgPtr)
+{
+  float max_temp = -1.0f;
+  
+  std::vector<pr2_msgs::BatteryState2>::const_iterator it;
+  for (it = msgPtr->battery.begin(); it != msgPtr->battery.end(); ++it)
+  {
+    // Convert to celcius from 0.1K
+    float batt_temp = ((float) it->battery_register[0x08]) / 10.0f - 273.15;
+
+    max_temp = max(max_temp, batt_temp);
+  }
+
+  ROS_DEBUG("Logging battery server %d with temperature %f", msgPtr->id, max_temp);
+  battery_temps_[msgPtr->id] = max_temp;
+}
+
+int PowerBoard::getFanDuty()
+{
+  // Find max battery temp
+  float max_temp = -1.0f;
+
+  std::map<int, float>::const_iterator it;
+  for (it = battery_temps_.begin(); it != battery_temps_.end(); ++it)
+    max_temp = max(max_temp, it->second);
+
+  // Find the appropriate duty cycle based on battery temp
+  int battDuty = 0;
+  if (max_temp > 50.0f)
+    battDuty = 100;
+  else if (max_temp > 48.0f)
+    battDuty = 75;
+  else if (max_temp > 45.0f)
+    battDuty = 50;
+  else
+    battDuty = 0;
+
+  // Find appropriate duty based on PB temp
+  int duty = 0;
+  if (last_ambient_temp_ > TEMP_START_RAMP)
+  {
+    int temp_offset = last_ambient_temp_ - TEMP_START_RAMP;
+    const int temp_range = TEMP_STOP_RAMP - TEMP_START_RAMP;
+    float ratio = ((float)temp_offset / (float)temp_range);
+    duty = ratio * 100.0;
+  }
+
+  ROS_DEBUG("Battery recommended fan duty cycle: %d. Power board recommended fan duty cycle: %d", 
+            battDuty, duty);
+  // Return max appropriate fan speed
+  return max(duty, battDuty); 
+}
+
+void PowerBoard::checkFanSpeed()
+{
+  send_command(0, "fan", getFanDuty());
 }
 
 bool PowerBoard::commandCallback(pr2_power_board::PowerBoardCommand::Request &req_,
@@ -685,6 +755,7 @@ void PowerBoard::sendMessages()
       stat.add("Breaker 2 Voltage", status->CB2_voltage);
 
       //ROS_DEBUG(" Board Temp   = %f", status->ambient_temp);
+      last_ambient_temp_ = status->ambient_temp;
       stat.add("Board Temperature", status->ambient_temp);
 
       if (status->ambient_temp > TEMP_WARN) 
@@ -941,6 +1012,7 @@ int main(int argc, char** argv)
 
   ros::Time last_msg( 0, 0);
   ros::Time last_transition( 0, 0);
+  ros::Time last_batt_check(0, 0);
 
   double ros_rate = 10; //(Hz) need to run the "spin" loop at some number of Hertz to handle ros things.
 
@@ -950,6 +1022,7 @@ int main(int argc, char** argv)
   ros::Rate r(ros_rate);
   const ros::Duration MSG_RATE(1/sample_frequency);
   const ros::Duration TRANSITION_RATE(1/transition_frequency);
+  const ros::Duration BATT_CHECK_RATE(1 / 0.1);
 
   while(private_handle.ok())
   {
@@ -965,6 +1038,12 @@ int main(int argc, char** argv)
     {
       myBoard->requestMessage(MESSAGE_ID_TRANSITION);
       last_transition = ros::Time::now();
+    }
+
+    if (ros::Time::now() - last_batt_check > BATT_CHECK_RATE)
+    {
+      last_batt_check = ros::Time::now();
+      myBoard->checkFanSpeed();
     }
 
     ros::spinOnce();
