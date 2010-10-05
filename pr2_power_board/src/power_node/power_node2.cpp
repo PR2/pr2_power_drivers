@@ -558,7 +558,8 @@ int PowerBoard::collect_messages()
 }
 
 PowerBoard::PowerBoard( const ros::NodeHandle node_handle, const std::string &address_str ) : 
-  node_handle(node_handle)
+  node_handle(node_handle),
+  fan_high_(false)
 {
   ROSCONSOLE_AUTOINIT;
   log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
@@ -617,11 +618,16 @@ int PowerBoard::getFanDuty()
     max_temp = max(max_temp, it->second);
 
   // Find the appropriate duty cycle based on battery temp
+  // Turn on fan when temp hits 46C, turn off when temp drops to 44C
   int battDuty = 0;
-  if (max_temp > 45.0f)
+  if (max_temp > 46.0f)
     battDuty = 100;
-  else
+  else if (max_temp > 44.0f && fan_high_)
+    battDuty = 100; // Hysteresis in fan controller
+  else // (max_temp < 44.0f) || (max_temp > 44.0f && !fan_high_ && max_temp < 46.0f) 
     battDuty = 0;
+ 
+  fan_high_ = battDuty > 0;
 
   ROS_DEBUG("Fan duty cycle based on battery temperature: %d, Battery temp: %.1f", battDuty, max_temp);
   return battDuty;

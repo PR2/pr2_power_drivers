@@ -83,6 +83,7 @@ class PowerBoard
     ros::Subscriber battery_sub_;
 
     std::map<int, float> battery_temps_;
+    bool fan_high_;
 
     int getFanDuty(); // Duty cycle to send to fan. 0 if no fan command
   
@@ -92,4 +93,5 @@ class PowerBoard
     pr2_power_board::PowerBoardCommand::Response res_;
     boost::mutex library_lock_;
     uint64_t ip_address;
+
 };
