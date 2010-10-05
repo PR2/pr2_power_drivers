@@ -83,7 +83,6 @@ class PowerBoard
     ros::Subscriber battery_sub_;
 
     std::map<int, float> battery_temps_;
-    int last_ambient_temp_;
 
     int getFanDuty(); // Duty cycle to send to fan. 0 if no fan command
   

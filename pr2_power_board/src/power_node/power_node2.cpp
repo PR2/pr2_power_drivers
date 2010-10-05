@@ -61,8 +61,6 @@
 #include "ros/ros.h"
 
 #define TEMP_WARN 60
-#define TEMP_START_RAMP 40
-#define TEMP_STOP_RAMP 60
 
 using namespace std;
 namespace po = boost::program_options;
@@ -302,8 +300,7 @@ int PowerBoard::send_command( int circuit_breaker, const std::string &command, u
     ROS_DEBUG("circuit=%d command=%s flags=%x\n", circuit_breaker, command.c_str(), flags);
 
     // Set fan duty based on battery temperature. #4763
-    int fan_duty = getFanDuty();
-    cmdmsg.command.fan0_command = fan_duty;
+    cmdmsg.command.fan0_command = getFanDuty();
     
     // Determine what command to send
     char command_enum = NONE;
@@ -561,8 +558,7 @@ int PowerBoard::collect_messages()
 }
 
 PowerBoard::PowerBoard( const ros::NodeHandle node_handle, const std::string &address_str ) : 
-  node_handle(node_handle),
-  last_ambient_temp_(0)
+  node_handle(node_handle)
 {
   ROSCONSOLE_AUTOINIT;
   log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
@@ -622,29 +618,13 @@ int PowerBoard::getFanDuty()
 
   // Find the appropriate duty cycle based on battery temp
   int battDuty = 0;
-  if (max_temp > 50.0f)
+  if (max_temp > 45.0f)
     battDuty = 100;
-  else if (max_temp > 48.0f)
-    battDuty = 75;
-  else if (max_temp > 45.0f)
-    battDuty = 50;
   else
     battDuty = 0;
 
-  // Find appropriate duty based on PB temp
-  int duty = 0;
-  if (last_ambient_temp_ > TEMP_START_RAMP)
-  {
-    int temp_offset = last_ambient_temp_ - TEMP_START_RAMP;
-    const int temp_range = TEMP_STOP_RAMP - TEMP_START_RAMP;
-    float ratio = ((float)temp_offset / (float)temp_range);
-    duty = ratio * 100.0;
-  }
-
-  ROS_DEBUG("Battery recommended fan duty cycle: %d. Power board recommended fan duty cycle: %d", 
-            battDuty, duty);
-  // Return max appropriate fan speed
-  return max(duty, battDuty); 
+  ROS_DEBUG("Fan duty cycle based on battery temperature: %d, Battery temp: %.1f", battDuty, max_temp);
+  return battDuty;
 }
 
 void PowerBoard::checkFanSpeed()
@@ -756,7 +736,6 @@ void PowerBoard::sendMessages()
       stat.add("Breaker 2 Voltage", status->CB2_voltage);
 
       //ROS_DEBUG(" Board Temp   = %f", status->ambient_temp);
-      last_ambient_temp_ = status->ambient_temp;
       stat.add("Board Temperature", status->ambient_temp);
 
       if (status->ambient_temp > TEMP_WARN) 
