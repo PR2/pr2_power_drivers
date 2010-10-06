@@ -857,21 +857,25 @@ void PowerBoard::sendMessages()
       //ROS_DEBUG("Publishing ");
       diags_pub.publish(msg_out);
 
-      pr2_msgs::PowerBoardState state_msg;
-      state_msg.name = stat.name;
-      state_msg.serial_num = pmesg->header.serial_num;
-      state_msg.input_voltage = status->input_voltage;
-      state_msg.circuit_voltage[0] = status->CB0_voltage;
-      state_msg.circuit_voltage[1] = status->CB1_voltage;
-      state_msg.circuit_voltage[2] = status->CB2_voltage;
-      state_msg.master_state = status->DCDC_state;
-      state_msg.circuit_state[0] = status->CB0_state;
-      state_msg.circuit_state[1] = status->CB1_state;
-      state_msg.circuit_state[2] = status->CB2_state;
-      state_msg.run_stop = status->estop_status;
-      state_msg.wireless_stop = status->estop_button_status;
-      state_msg.header.stamp = ros::Time::now();
-      state_pub.publish(state_msg);
+      // Only publish a message if we've received data recently. #3877
+      if ((ros::Time::now() - devicePtr->message_time) < TIMEOUT )
+      {
+        pr2_msgs::PowerBoardState state_msg;
+        state_msg.name = stat.name;
+        state_msg.serial_num = pmesg->header.serial_num;
+        state_msg.input_voltage = status->input_voltage;
+        state_msg.circuit_voltage[0] = status->CB0_voltage;
+        state_msg.circuit_voltage[1] = status->CB1_voltage;
+        state_msg.circuit_voltage[2] = status->CB2_voltage;
+        state_msg.master_state = status->DCDC_state;
+        state_msg.circuit_state[0] = status->CB0_state;
+        state_msg.circuit_state[1] = status->CB1_state;
+        state_msg.circuit_state[2] = status->CB2_state;
+        state_msg.run_stop = status->estop_status;
+        state_msg.wireless_stop = status->estop_button_status;
+        state_msg.header.stamp = ros::Time::now();
+        state_pub.publish(state_msg);
+      }
     }
   }
 }
