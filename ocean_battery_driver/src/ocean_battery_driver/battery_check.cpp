@@ -116,25 +116,23 @@ public:
   bool batteryOK() const
   {
     bool ok = true; // Checks to make sure OK
-    bool ng = false; // Checks to make sure they're good
-
-
     bool stale = false; // All batteries must have updated within timeout
 
     for (int i = 0; i < os.server.MAX_BAT_COUNT; ++i)
     {
       ok = ok && present[i]; 
-      ng = ng || no_good[i];
       stale = ((ros::Time::now() - last_update[i]).toSec() > timeout_) || stale;
     }
 
-    return ok && !stale && !ng;
+    return ok && !stale;
   }
 
   string getStatus() const
   {
     stringstream ss;
     ss << "Port: " << device_ << "\n";
+
+    bool ng = false;
     for (int i = 0; i < os.server.MAX_BAT_COUNT; ++i)
       {
 	ss << "\tBattery " << i << ":\n";
@@ -143,7 +141,11 @@ public:
 	ss << "\t\tNo Good: " << (no_good[i] ? "Yes" : "No") << "\n";
         ss << "\t\tHas updated: " << (last_update[i] > ros::Time(1) ? "Yes" : "No") << "\n";
         ss << "\t\tTime Since Update: " << (ros::Time::now() - last_update[i]).toSec() << "\n";
+        ng = ng || no_good[i];
       }
+    if (ng)
+      ss << "Warning: \"No Good\" flag enabled. This may cause battery problems.\n";
+
     return ss.str();
   }
 };
