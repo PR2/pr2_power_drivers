@@ -41,6 +41,7 @@ namespace willowgarage
       int run ();
       void setDebugLevel (int);
       void initialize (const std::string &input_dev);
+      void read_file (const std::string &input);
 
     private:
       void flush (void);        //Flushes the serial buffer

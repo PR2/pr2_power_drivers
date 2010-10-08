@@ -238,7 +238,7 @@ bool AdvancedPowerStateEstimator::readObservations(vector<LogRecord>& log)
         }
         catch (const boost::bad_lexical_cast& ex) { }
 
-        ROS_ERROR("Invalid line %d in log file: %s.", line_num, log_filename_.c_str());
+        ROS_DEBUG("Invalid line %d in log file: %s.", line_num, log_filename_.c_str());
     }
 
     f.close();
