@@ -692,9 +692,11 @@ void PowerBoard::sendMessages()
       Device *device = Devices[i];
       const PowerMessage *pmesg = &device->getPowerMessage();
       
-      ostringstream ss;
+      ostringstream ss, ss2;
       ss << "Power board " << pmesg->header.serial_num;
+      ss2 << "68050070" << pmesg->header.serial_num;
       stat.name = ss.str();
+      stat.hardware_id = ss2.str();
 
       if( (ros::Time::now() - device->message_time) > TIMEOUT )
       {

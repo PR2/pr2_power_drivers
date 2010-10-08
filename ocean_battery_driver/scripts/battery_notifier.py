@@ -75,6 +75,8 @@ class BatteryNotifier:
     rospy.spin()
 
 if __name__ == '__main__':
+  print >> sys.stderr, "This script is deprecated. Do not use it."
+
   if len(sys.argv) < 2:
     notifier = BatteryNotifier(30.0, "battery_state", ["eitan@willowgarage.com"], "pre", "/usr/sbin/sendmail")
   else:

@@ -146,6 +146,18 @@ ocean::initialize (const std::string &input_dev)
 
 }
 
+void
+ocean::read_file (const std::string &input)
+{
+  inputDevice = open (input.c_str(), O_RDONLY);
+  if (inputDevice < 0)
+  {
+    fprintf (stderr, "failed to open tty file [%s]: %s\n", input.c_str(), strerror (errno));
+  }
+
+  packet_reset();
+}
+
 int ocean::commTest()
 {
   int maxTries = 10;
@@ -670,7 +682,7 @@ unsigned int ocean::processController (int count, char *field[])
     int tmp = atoi (field[index]);
     //report (5, "field[%d]=%s  field[%d]=%s\n", index, field[index], index+1, field[index+1]);
     int value = strtol(field[index+1], 0, 16);
-    report (5, "switch=%d  value=%d\n", tmp, value);
+    report (5, "switch=%d  value=0x%x\n", tmp, value);
 
 /*
     if ( tmp != fieldCount)
@@ -686,7 +698,7 @@ unsigned int ocean::processController (int count, char *field[])
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.battery[xx].present = value && 1;
+            server.battery[xx].present = value & 1;
             value = value >> 1;
           }
         }
@@ -695,7 +707,7 @@ unsigned int ocean::processController (int count, char *field[])
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.battery[xx].charging = value && 1;
+            server.battery[xx].charging = value & 1;
             value = value >> 1;
           }
         }
@@ -704,7 +716,7 @@ unsigned int ocean::processController (int count, char *field[])
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.battery[xx].discharging = value && 1;
+            server.battery[xx].discharging = value & 1;
             value = value >> 1;
           }
         }
@@ -714,7 +726,7 @@ unsigned int ocean::processController (int count, char *field[])
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.battery[xx].reserved = value && 1;
+            server.battery[xx].reserved = value & 1;
             value = value >> 1;
           }
         }
@@ -724,7 +736,7 @@ unsigned int ocean::processController (int count, char *field[])
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.battery[xx].power_present = value && 1;
+            server.battery[xx].power_present = value & 1;
             value = value >> 1;
           }
         }
@@ -733,7 +745,7 @@ unsigned int ocean::processController (int count, char *field[])
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.battery[xx].power_no_good = value && 1;
+            server.battery[xx].power_no_good = value & 1;
             value = value >> 1;
           }
         }
@@ -742,7 +754,7 @@ unsigned int ocean::processController (int count, char *field[])
         {
           for(int xx = 0; xx < server.MAX_BAT_COUNT; ++xx)
           {
-            server.battery[xx].inhibited = value && 1;
+            server.battery[xx].inhibited = value & 1;
             value = value >> 1;
           }
         }

@@ -299,6 +299,9 @@ int PowerBoard::send_command( int circuit_breaker, const std::string &command, u
 
     ROS_DEBUG("circuit=%d command=%s flags=%x\n", circuit_breaker, command.c_str(), flags);
 
+    // Set fan duty based on battery temperature. #4763
+    cmdmsg.command.fan0_command = getFanDuty();
+    
     // Determine what command to send
     char command_enum = NONE;
     if (command == "start") {
@@ -342,6 +345,8 @@ int PowerBoard::send_command( int circuit_breaker, const std::string &command, u
     ROS_DEBUG("Sent command %s(%d), circuit %d", command.c_str(), command_enum, circuit_breaker);
 
   }
+
+
 
   errno = 0;
   //ROS_INFO("Send on %s", inet_ntoa(SendInterfaces[xx]->ifc_address.sin_addr));
@@ -552,7 +557,9 @@ int PowerBoard::collect_messages()
   return 0;
 }
 
-PowerBoard::PowerBoard( const ros::NodeHandle node_handle, const std::string &address_str ) : node_handle(node_handle)
+PowerBoard::PowerBoard( const ros::NodeHandle node_handle, const std::string &address_str ) : 
+  node_handle(node_handle),
+  fan_high_(false)
 {
   ROSCONSOLE_AUTOINIT;
   log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
@@ -579,6 +586,56 @@ void PowerBoard::init()
 
   diags_pub = node_handle.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 2);
   state_pub = node_handle.advertise<pr2_msgs::PowerBoardState>("state", 2, true);
+
+  ros::NodeHandle main_handle;
+  battery_sub_ = main_handle.subscribe("battery/server2", 10, &PowerBoard::batteryCB, this);
+}
+
+void PowerBoard::batteryCB(const pr2_msgs::BatteryServer2::ConstPtr &msgPtr)
+{
+  float max_temp = -1.0f;
+  
+  std::vector<pr2_msgs::BatteryState2>::const_iterator it;
+  for (it = msgPtr->battery.begin(); it != msgPtr->battery.end(); ++it)
+  {
+    // Convert to celcius from 0.1K
+    float batt_temp = ((float) it->battery_register[0x08]) / 10.0f - 273.15;
+
+    max_temp = max(max_temp, batt_temp);
+  }
+
+  ROS_DEBUG("Logging battery server %d with temperature %f", msgPtr->id, max_temp);
+  battery_temps_[msgPtr->id] = max_temp;
+}
+
+int PowerBoard::getFanDuty()
+{
+  // Find max battery temp
+  float max_temp = -1.0f;
+
+  std::map<int, float>::const_iterator it;
+  for (it = battery_temps_.begin(); it != battery_temps_.end(); ++it)
+    max_temp = max(max_temp, it->second);
+
+  // Find the appropriate duty cycle based on battery temp
+  // Turn on fan when temp hits 46C, turn off when temp drops to 44C
+  int battDuty = 0;
+  if (max_temp > 46.0f)
+    battDuty = 100;
+  else if (max_temp > 44.0f && fan_high_)
+    battDuty = 100; // Hysteresis in fan controller
+  else // (max_temp < 44.0f) || (max_temp > 44.0f && !fan_high_ && max_temp < 46.0f) 
+    battDuty = 0;
+ 
+  fan_high_ = battDuty > 0;
+
+  ROS_DEBUG("Fan duty cycle based on battery temperature: %d, Battery temp: %.1f", battDuty, max_temp);
+  return battDuty;
+}
+
+void PowerBoard::checkFanSpeed()
+{
+  send_command(0, "fan", getFanDuty());
 }
 
 bool PowerBoard::commandCallback(pr2_power_board::PowerBoardCommand::Request &req_,
@@ -636,9 +693,11 @@ void PowerBoard::sendMessages()
 
       const PowerMessage *pmesg = &devicePtr->getPowerMessage();
       
-      ostringstream ss;
+      ostringstream ss, ss2;
       ss << "Power board " << pmesg->header.serial_num;
+      ss2 << "68050070" << pmesg->header.serial_num;
       stat.name = ss.str();
+      stat.hardware_id = ss2.str();
 
       if( (ros::Time::now() - devicePtr->message_time) > TIMEOUT )
       {
@@ -652,7 +711,7 @@ void PowerBoard::sendMessages()
 
       if (status->fan0_speed == 0)
       {
-	stat.summary(diagnostic_msgs::DiagnosticStatus::WARN, "Base Fan Off");
+	stat.summary(diagnostic_msgs::DiagnosticStatus::ERROR, "Base Fan Off");
       }
 
       //ROS_DEBUG("Device %u", i);
@@ -798,21 +857,25 @@ void PowerBoard::sendMessages()
       //ROS_DEBUG("Publishing ");
       diags_pub.publish(msg_out);
 
-      pr2_msgs::PowerBoardState state_msg;
-      state_msg.name = stat.name;
-      state_msg.serial_num = pmesg->header.serial_num;
-      state_msg.input_voltage = status->input_voltage;
-      state_msg.circuit_voltage[0] = status->CB0_voltage;
-      state_msg.circuit_voltage[1] = status->CB1_voltage;
-      state_msg.circuit_voltage[2] = status->CB2_voltage;
-      state_msg.master_state = status->DCDC_state;
-      state_msg.circuit_state[0] = status->CB0_state;
-      state_msg.circuit_state[1] = status->CB1_state;
-      state_msg.circuit_state[2] = status->CB2_state;
-      state_msg.run_stop = status->estop_status;
-      state_msg.wireless_stop = status->estop_button_status;
-      state_msg.header.stamp = ros::Time::now();
-      state_pub.publish(state_msg);
+      // Only publish a message if we've received data recently. #3877
+      if ((ros::Time::now() - devicePtr->message_time) < TIMEOUT )
+      {
+        pr2_msgs::PowerBoardState state_msg;
+        state_msg.name = stat.name;
+        state_msg.serial_num = pmesg->header.serial_num;
+        state_msg.input_voltage = status->input_voltage;
+        state_msg.circuit_voltage[0] = status->CB0_voltage;
+        state_msg.circuit_voltage[1] = status->CB1_voltage;
+        state_msg.circuit_voltage[2] = status->CB2_voltage;
+        state_msg.master_state = status->DCDC_state;
+        state_msg.circuit_state[0] = status->CB0_state;
+        state_msg.circuit_state[1] = status->CB1_state;
+        state_msg.circuit_state[2] = status->CB2_state;
+        state_msg.run_stop = status->estop_status;
+        state_msg.wireless_stop = status->estop_button_status;
+        state_msg.header.stamp = ros::Time::now();
+        state_pub.publish(state_msg);
+      }
     }
   }
 }
@@ -939,6 +1002,7 @@ int main(int argc, char** argv)
 
   ros::Time last_msg( 0, 0);
   ros::Time last_transition( 0, 0);
+  ros::Time last_batt_check(0, 0);
 
   double ros_rate = 10; //(Hz) need to run the "spin" loop at some number of Hertz to handle ros things.
 
@@ -948,6 +1012,7 @@ int main(int argc, char** argv)
   ros::Rate r(ros_rate);
   const ros::Duration MSG_RATE(1/sample_frequency);
   const ros::Duration TRANSITION_RATE(1/transition_frequency);
+  const ros::Duration BATT_CHECK_RATE(1 / 0.1);
 
   while(private_handle.ok())
   {
@@ -963,6 +1028,12 @@ int main(int argc, char** argv)
     {
       myBoard->requestMessage(MESSAGE_ID_TRANSITION);
       last_transition = ros::Time::now();
+    }
+
+    if (ros::Time::now() - last_batt_check > BATT_CHECK_RATE)
+    {
+      last_batt_check = ros::Time::now();
+      myBoard->checkFanSpeed();
     }
 
     ros::spinOnce();
