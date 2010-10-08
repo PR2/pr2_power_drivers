@@ -34,12 +34,19 @@ float toFloat(const int &value)
   return result;
 }
 
+float tempToCelcius(const int &iKelvin)
+{
+  float fKelvin = (float) (iKelvin * 0.1);
+  return (fKelvin - (float) 273.15);
+}
+
 class server
 {
   public:
 
     server( const int &majorID, const std::string &dev, const int debug_level = 0 ) : 
-      majorID(majorID), debug_level(debug_level), serial_device("/dev/ttyUSB0"), stopRequest(false)
+      majorID(majorID), debug_level(debug_level), serial_device("/dev/ttyUSB0"), stopRequest(false),
+      has_warned_temp_alarm_(false), has_warned_no_good_(false)
     {
       std::stringstream ss;
 
@@ -100,7 +107,7 @@ class server
     volatile bool stopRequest;
     boost::shared_ptr<boost::thread> myThread;
     int lag_timeout_, stale_timeout_;
-
+    bool has_warned_temp_alarm_, has_warned_no_good_;
 
     void run()
     {
@@ -121,6 +128,7 @@ class server
       Duration MESSAGE_TIME(2,0);    //the message output rate
       ocean os( majorID, debug_level);
       os.initialize(serial_device.c_str());
+      //os.read_file(serial_device.c_str());
 
       pr2_msgs::BatteryServer oldserver;
       oldserver.battery.resize(4);
@@ -176,7 +184,7 @@ class server
           ss.str("");
           ss << "IBPS " << majorID;
           stat.name = ss.str();
-          stat.level = 0;
+          stat.level = diagnostic_msgs::DiagnosticStatus::OK;
           stat.message = "OK";
           
           stat.add("Time Remaining (min)", (os.server.time_left.toSec()/60));
@@ -202,7 +210,6 @@ class server
               stat.add("Battery Present", "False");
               stat.level = diagnostic_msgs::DiagnosticStatus::ERROR;
               stat.message = "Not present";
-               
             }
             else
             {
@@ -238,15 +245,12 @@ class server
                   }
                   else if(addr == 0x8)  //Address of Temperature
                   {
-                    int iKelvin = os.server.battery[xx].battery_register[addr];
-                    float fKelvin = (float) (iKelvin * 0.1);
-                    float celsius = fKelvin - (float) 273.15;
+                    float celsius = tempToCelcius(os.server.battery[xx].battery_register[addr]);
                     if(celsius > BATTERY_TEMP_WARN)
                     {
                       ostringstream warn;
-                      stat.level = 1;
                       warn << "High Temperature Warning > " << BATTERY_TEMP_WARN << "C";
-                      stat.message = warn.str();
+                      stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, warn.str());
                     }
 
                     stat.add("Temperature (C)", celsius);
@@ -277,26 +281,38 @@ class server
               // Give them "grace period" on startup to update before we report error
               bool updateGracePeriod = (currentTime - startTime).toSec() < stale_timeout_;
               if (os.server.battery[xx].last_battery_update <= Time(1) && updateGracePeriod)
-              {
-                stat.level = diagnostic_msgs::DiagnosticStatus::WARN;
-                stat.message = "Waiting for battery update";
-              }
+                stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Waiting for battery update");
               else if (stale_timeout_ > 0 && elapsed.toSec() > stale_timeout_)
-              {
-                stat.level = diagnostic_msgs::DiagnosticStatus::ERROR;
-                stat.message = "No updates";
-              }
+                stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::ERROR, "No updates");
               else if (lag_timeout_ > 0 && elapsed.toSec() > lag_timeout_)
-              {
-                stat.level = diagnostic_msgs::DiagnosticStatus::WARN;
-                stat.message = "Stale updates";
-              }
+                stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Stale updates");
 
-	      // Report an error if battery is "No Good"
-	      if (os.server.battery[xx].power_no_good)
+
+              // Warn for over temp alarm
+	      // If power present and not charging, not full, and temp >= 46C
+	      // 0x0d is "Relative State of Charge"
+              if (os.server.battery[xx].power_present && !os.server.battery[xx].charging 
+		  && os.server.battery[xx].battery_register[0x0d] < 90
+		  && tempToCelcius(os.server.battery[xx].battery_register[0x8]) > 46.0)
 		{
-		  stat.level = diagnostic_msgs::DiagnosticStatus::ERROR;
-		  stat.message = "Battery is \"No Good\"";
+		  stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Charge Inhibited, High Temperature");
+		  if (!has_warned_temp_alarm_)
+		    {
+		      ROS_WARN("Over temperature alarm found on battery %d. Battery will not charge.", xx);
+		      has_warned_temp_alarm_ = true;
+		    }
+		}
+
+	      // Check for battery status code, not sure if this works.
+	      if (os.server.battery[xx].battery_register[0x16] & 0x1000)
+		  stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Over Temp Alarm");
+
+	      // Report a console warning if battery is "No Good"
+              // This may be a problem with the battery, but we're not sure.
+	      if (os.server.battery[xx].power_no_good && !has_warned_no_good_)
+		{
+                  ROS_WARN("Battery %d reports \"No Good\".", xx);
+                  has_warned_no_good_ = true;
 		}
                           
               msg_out.status.push_back(stat);

@@ -80,6 +80,7 @@ def listener():
         
         
 if __name__ == '__main__':
+    print >> sys.stderr, "This tool is deprecated. Use the pr2_dashboard instead"
     try:
         listener()
     except KeyboardInterrupt, e:

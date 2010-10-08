@@ -33,6 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
+from __future__ import division
 PKG = 'ocean_battery_driver'
 
 import roslib
@@ -106,7 +107,7 @@ class BatteryPanel(wx.Panel):
             self.power_text.SetValue('%.2f Watts'%message.power_consumption)
             self.capacity_gauge.SetValue(message.relative_capacity)
             self.capacity_text.SetValue('%d%%'%message.relative_capacity)
-            time_remaining = message.time_remaining.sec / 60
+            time_remaining = message.time_remaining.to_sec() / 60
             if message.AC_present > 0:
               self.time_field.SetValue('%u minutes to full'%(time_remaining))
               self.time_field.SetBackgroundColour("White")
