@@ -78,6 +78,8 @@ private:
 
     std::string masterStateToString(int8_t master_state) const;
 
+    ros::Time getLastBatteryUpdate() const;
+
 private:
     dynamic_reconfigure::Server<power_monitor::PowerMonitorConfig> config_server_;
 
@@ -98,6 +100,8 @@ private:
     ros::Subscriber power_node_sub_;
 
     PowerObservation observation_;
+
+    double battery_update_timeout_;
 };
 
 }
