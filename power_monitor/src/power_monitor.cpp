@@ -48,8 +48,16 @@ PowerMonitor::PowerMonitor() : master_state_(-1),
     string estimator_type_str   = "advanced";
     double freq                 = 0.1;
 
-    pnh.getParam("battery_server_topic", battery_server_topic);
-    pnh.getParam("power_board_node",     power_board_node);
+    if (pnh.getParam("battery_server_topic", battery_server_topic))
+    {
+      ROS_WARN("Setting the battery_server_topic parameter is deprecated. Use remappings");
+    }
+
+    if (pnh.getParam("power_board_node",     power_board_node))
+    {
+      ROS_WARN("Setting the power_board_node parameter is deprecated. Use remappings");
+    }
+
     pnh.getParam("estimation_method",    estimator_type_str);
     pnh.getParam("frequency",            freq);
     pnh.getParam("battery_update_timeout", battery_update_timeout_);
