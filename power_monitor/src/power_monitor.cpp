@@ -43,20 +43,10 @@ PowerMonitor::PowerMonitor() : master_state_(-1),
     ros::NodeHandle node;
     ros::NodeHandle pnh("~");
 
-    string battery_server_topic = "battery/server2";
-    string power_board_node     = "power_board";
-    string estimator_type_str   = "advanced";
-    double freq                 = 0.1;
-
-    if (pnh.getParam("battery_server_topic", battery_server_topic))
-    {
-      ROS_WARN("Setting the battery_server_topic parameter is deprecated. Use remappings");
-    }
-
-    if (pnh.getParam("power_board_node",     power_board_node))
-    {
-      ROS_WARN("Setting the power_board_node parameter is deprecated. Use remappings");
-    }
+    static const string battery_server_topic = "battery/server2";
+    static const string power_board_node     = "power_board";
+    string estimator_type_str                = "advanced";
+    double freq                              = 0.1;
 
     pnh.getParam("estimation_method",    estimator_type_str);
     pnh.getParam("frequency",            freq);
@@ -92,7 +82,7 @@ PowerMonitor::PowerMonitor() : master_state_(-1),
     power_state_pub_       = node.advertise<pr2_msgs::PowerState>("power_state", 5, true);
     power_state_pub_timer_ = node.createTimer(ros::Duration(1.0 / freq), &PowerMonitor::onPublishTimer, this);
     battery_server_sub_    = node.subscribe(battery_server_topic, 10, &PowerMonitor::batteryServerUpdate, this);
-    power_node_sub_        = node.subscribe(node.resolveName(power_board_node) + "/state", 10, &PowerMonitor::powerNodeUpdate, this);
+    power_node_sub_        = node.subscribe(power_board_node + "/state", 10, &PowerMonitor::powerNodeUpdate, this);
 }
 
 void PowerMonitor::addEstimator(PowerStateEstimator* est)
