@@ -44,6 +44,7 @@ namespace willowgarage
       void read_file (const std::string &input);
 
     private:
+      long int convertStringBase16( const char* input );
       void flush (void);        //Flushes the serial buffer
       int get_speed (void);
       void set_speed (int speed);
