@@ -27,6 +27,7 @@ if __name__ == "__main__":
   control = rospy.ServiceProxy('power_board/control', PowerBoardCommand)
   state = rospy.Subscriber("/power_board/state", PowerBoardState, callback)
 
+  pause_on_fail = 0
   breaker_number = 1  # The breaker we are toggling
   other_breaker1 = 0
   other_breaker2 = 2
@@ -71,7 +72,7 @@ if __name__ == "__main__":
  
 
     try_count = try_count - 1
-    if fail_count > last_fail_count:
+    if pause_on_fail and fail_count > last_fail_count:
       print "Pause on Fail"
       line = sys.stdin.readline()
       last_fail_count = fail_count
