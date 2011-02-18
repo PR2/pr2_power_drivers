@@ -215,21 +215,21 @@ class PowerBoardPanel(wx.Panel):
                     self.breaker2_status.SetValue("%s @ %sV"%(self.breaker_state[2], self.voltages[2]))
                     if self.breaker_state[0] == "Standby":
                         self.breaker0_status.SetBackgroundColour("Orange")
-                    elif self.breaker_state[0] == "Enabled":
+                    elif self.breaker_state[0] in ("On", "Enabled"):
                         self.breaker0_status.SetBackgroundColour("Light Green")
                     else:
                         self.breaker0_status.SetBackgroundColour("Red")
 
                     if self.breaker_state[1] == "Standby":
                         self.breaker1_status.SetBackgroundColour("Orange")
-                    elif self.breaker_state[1] == "Enabled":
+                    elif self.breaker_state[1] in ("On", "Enabled"):
                         self.breaker1_status.SetBackgroundColour("Light Green")
                     else:
                         self.breaker1_status.SetBackgroundColour("Red")
 
                     if self.breaker_state[2] == "Standby":
                         self.breaker2_status.SetBackgroundColour("Orange")
-                    elif self.breaker_state[2] == "Enabled":
+                    elif self.breaker_state[2] in ("On", "Enabled"):
                         self.breaker2_status.SetBackgroundColour("Light Green")
                     else:
                         self.breaker2_status.SetBackgroundColour("Red")
