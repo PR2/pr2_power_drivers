@@ -39,6 +39,7 @@ import roslib
 roslib.load_manifest(PKG)
 
 import sys
+import re
 import rospy
 from diagnostic_msgs.msg import *
 from pr2_power_board.srv import *
@@ -197,38 +198,38 @@ class PowerBoardPanel(wx.Panel):
                             self.estop_button_status = value.value
 
                     for strvals in status.values:
-                        if (strvals.key == "Breaker 0 State"):
+                        if (re.match('Breaker 0',strvals.key,re.IGNORECASE)):
                             self.breaker_state[0] = strvals.value
-                        if (strvals.key == "Breaker 1 State"):
+                        if (re.match('Breaker 1',strvals.key,re.IGNORECASE)):
                             self.breaker_state[1] = strvals.value
-                        if (strvals.key == "Breaker 2 State"):
+                        if (re.match('Breaker 2',strvals.key,re.IGNORECASE)):
                             self.breaker_state[2] = strvals.value
                     
 
 
-##                    rospy.logerr("Voltages: %.1f %.1f %.1f"%(self.voltages[0],self.voltages[1], self.voltages[2]))
-##                    rospy.logerr("States: %s %s %s"%(self.breaker_state[0], self.breaker_state[1], self.breaker_state[2]))
+                    #rospy.logerr("Voltages: %.1f %.1f %.1f"%(self.voltages[0],self.voltages[1], self.voltages[2]))
+                    #rospy.logerr("States: %s %s %s"%(self.breaker_state[0], self.breaker_state[1], self.breaker_state[2]))
 
                     self.breaker0_status.SetValue("%s @ %sV"%(self.breaker_state[0], self.voltages[0]))
                     self.breaker1_status.SetValue("%s @ %sV"%(self.breaker_state[1], self.voltages[1]))
                     self.breaker2_status.SetValue("%s @ %sV"%(self.breaker_state[2], self.voltages[2]))
                     if self.breaker_state[0] == "Standby":
                         self.breaker0_status.SetBackgroundColour("Orange")
-                    elif self.breaker_state[0] == "On":
+                    elif self.breaker_state[0] == "Enabled":
                         self.breaker0_status.SetBackgroundColour("Light Green")
                     else:
                         self.breaker0_status.SetBackgroundColour("Red")
 
                     if self.breaker_state[1] == "Standby":
                         self.breaker1_status.SetBackgroundColour("Orange")
-                    elif self.breaker_state[1] == "On":
+                    elif self.breaker_state[1] == "Enabled":
                         self.breaker1_status.SetBackgroundColour("Light Green")
                     else:
                         self.breaker1_status.SetBackgroundColour("Red")
 
                     if self.breaker_state[2] == "Standby":
                         self.breaker2_status.SetBackgroundColour("Orange")
-                    elif self.breaker_state[2] == "On":
+                    elif self.breaker_state[2] == "Enabled":
                         self.breaker2_status.SetBackgroundColour("Light Green")
                     else:
                         self.breaker2_status.SetBackgroundColour("Red")
