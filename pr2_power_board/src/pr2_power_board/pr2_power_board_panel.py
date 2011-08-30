@@ -181,9 +181,11 @@ class PowerBoardPanel(wx.Panel):
                     if( status.level == 0 ):
                         self._real_panel.SetBackgroundColour("LIGHT_GREY")
                         self._real_panel.Enable(True)
+                    elif (status.level == 0):
+                        self._real_panel.SetBackgroundColour("Orange")
                     else:
                         self._real_panel.SetBackgroundColour("RED")
-                        self._real_panel.Enable(False)
+                        #self._real_panel.Enable(False)
 
                     for value in status.values:
                         if (value.key == "Breaker 0 Voltage"):
