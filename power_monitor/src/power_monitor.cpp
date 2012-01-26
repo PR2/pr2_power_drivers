@@ -37,19 +37,20 @@
 using namespace std;
 using namespace power_monitor;
 
-PowerMonitor::PowerMonitor() : master_state_(-1)
+PowerMonitor::PowerMonitor() : master_state_(-1),
+                               battery_update_timeout_(120)
 {
     ros::NodeHandle node;
+    ros::NodeHandle pnh("~");
 
-    string battery_server_topic = "battery/server2";
-    string power_board_node     = "power_board";
-    string estimator_type_str   = "advanced";
-    double freq                 = 0.1;
+    static const string battery_server_topic = "battery/server2";
+    static const string power_board_node     = "power_board";
+    string estimator_type_str                = "advanced";
+    double freq                              = 0.1;
 
-    node.getParam("battery_server_topic", battery_server_topic);
-    node.getParam("power_board_node",     power_board_node);
-    node.getParam("estimation_method",    estimator_type_str);
-    node.getParam("frequency",            freq);
+    pnh.getParam("estimation_method",    estimator_type_str);
+    pnh.getParam("frequency",            freq);
+    pnh.getParam("battery_update_timeout", battery_update_timeout_);
 
     ros::Duration(2).sleep();
 
@@ -81,7 +82,7 @@ PowerMonitor::PowerMonitor() : master_state_(-1)
     power_state_pub_       = node.advertise<pr2_msgs::PowerState>("power_state", 5, true);
     power_state_pub_timer_ = node.createTimer(ros::Duration(1.0 / freq), &PowerMonitor::onPublishTimer, this);
     battery_server_sub_    = node.subscribe(battery_server_topic, 10, &PowerMonitor::batteryServerUpdate, this);
-    power_node_sub_        = node.subscribe(node.resolveName(power_board_node) + "/state", 10, &PowerMonitor::powerNodeUpdate, this);
+    power_node_sub_        = node.subscribe(power_board_node + "/state", 10, &PowerMonitor::powerNodeUpdate, this);
 }
 
 void PowerMonitor::addEstimator(PowerStateEstimator* est)
@@ -132,7 +133,10 @@ void PowerMonitor::powerNodeUpdate(const boost::shared_ptr<const pr2_msgs::Power
 
     // Publish the power state immediately if we're shutting down. Want to ensure we record these data points.
     if (master_state_ == pr2_msgs::PowerBoardState::MASTER_SHUTDOWN)
-        publishPowerState();
+    {
+      ROS_WARN("Power board reports imminant shutdown");
+      publishPowerState();
+    }
 }
 
 string PowerMonitor::masterStateToString(int8_t master_state) const
@@ -195,9 +199,29 @@ PowerObservation PowerMonitor::extractObservation()
     return PowerObservation(ros::Time::now(), master_state_, batteries);
 }
 
+ros::Time PowerMonitor::getLastBatteryUpdate() const
+{
+  ros::Time rv;
+  for (map<int, boost::shared_ptr<const pr2_msgs::BatteryServer2> >::const_iterator i = battery_servers_.begin(); i != battery_servers_.end(); i++)
+  {
+    const pr2_msgs::BatteryServer2* bs = i->second.get();
+    if (bs->header.stamp > rv)
+      rv = bs->header.stamp;
+  }
+
+  return rv;
+}
+
 void PowerMonitor::onPublishTimer(const ros::TimerEvent& e)
 {
-    publishPowerState();
+  // Don't publish power data if we haven't received battery data in a timeout, #4851
+  if (battery_update_timeout_ > 0 && ((ros::Time::now() - getLastBatteryUpdate()).toSec() > battery_update_timeout_))
+  {
+    ROS_WARN_THROTTLE(60, "Power monitor not publishing estimate, batteries have not recently updated. Check diagnostics.");
+    return;
+  }
+
+  publishPowerState();
 }
 
 void PowerMonitor::publishPowerState()

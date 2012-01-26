@@ -8,11 +8,10 @@
 #include <fcntl.h>
 #include <math.h>
 #include <poll.h>
-
+#include <limits.h>
+#define FILE_LOGGING 0
 #include "ocean.h"
 #include "ros/time.h"
-
-#define FILE_LOGGING 0
 
 using namespace willowgarage::ocean;
 
@@ -120,7 +119,7 @@ ocean::initialize (const std::string &input_dev)
 
 #if (FILE_LOGGING > 0)
   char logname[128];
-  sprintf ( logname, "/tmp/oceanServer%c.log", input[strlen(input) -1]);
+  sprintf ( logname, "/tmp/oceanServer%c.log", input_dev[input_dev.length()-1]);
   report (2, "Logging to file: %s\n", logname);
 
   outputFile = open( logname, (O_WRONLY | O_APPEND ) );
@@ -144,6 +143,36 @@ ocean::initialize (const std::string &input_dev)
   if(commTest())  //If the Ocean isn't talking then get it into the NMEA mode
     resetOcean();
 
+}
+
+long int ocean::convertStringBase16( const char* input )
+{
+  char *endptr;
+  errno = 0;
+
+  if( input == NULL )
+  {
+    report (1, "convertStringBase16 input NULL\n");
+    return 0;
+  }
+
+  long int result = strtol( input, &endptr, 16 );
+  if( ((errno == ERANGE) && (( result == LONG_MIN ) || ( result == LONG_MAX ))) || ((errno != 0) && (result == 0)))
+  {
+    report (0, "strtol failure\n");
+    return 0;
+  }
+
+  if( endptr == input )
+  {
+    report (0, "strtol No digits found\n");
+    return 0;
+  }
+
+  if( *endptr != '\0' ) //not always and error, but probably not good
+    report( 1, "strtol characters left after conversion: %s\n", endptr);
+
+  return result;
 }
 
 void
@@ -584,7 +613,7 @@ ocean::packet_get ()
     return NO_PACKET;
 
 #if (FILE_LOGGING > 0)
-  write( outputFile, inbuffer, newdata );
+  write( outputFile, inbuffer + inbuflen, newdata );
 #endif
 
   return packet_parse ((size_t) newdata);
@@ -629,23 +658,26 @@ unsigned int ocean::processSystem (int count, char *field[])
     //report (4, "field[1]=%s\n", field[1]);
     int tmp = atoi(field[index]);
     ++index;
-    switch(tmp)
+    if( field[index] != NULL )
     {
-      case 1:
-        server.time_left.fromSec((double)strtol( field[index], 0, 16 ) * 60);
-        report (5, "timeLeft=%d\n", server.time_left.sec);
-        break;
-      case 3:
-        server.message.assign(field[index]);
-        //sscanf( field[index], "%s", server.message.c_str());
-        report (5, "processSystem message=%s\n", server.message.c_str());
-        break;
-      case 4:
-        server.average_charge = (int32_t)strtol( field[index], 0, 16 );
-        report (5, "averageCharge=%x\n", server.average_charge);
-        break;
-      default:
-        ;
+      switch(tmp)
+      {
+        case 1:
+          server.time_left.fromSec((double)convertStringBase16(field[index]) * 60);
+          report (5, "timeLeft=%d\n", server.time_left.sec);
+          break;
+        case 3:
+          server.message.assign(field[index]);
+          //sscanf( field[index], "%s", server.message.c_str());
+          report (5, "processSystem message=%s\n", server.message.c_str());
+          break;
+        case 4:
+          server.average_charge = (int32_t)convertStringBase16(field[index]);
+          report (5, "averageCharge=%x\n", server.average_charge);
+          break;
+        default:
+          ;
+      }
     }
     ++index;
   }
@@ -680,17 +712,18 @@ unsigned int ocean::processController (int count, char *field[])
   for( int index = 1; index < count; )
   {
     int tmp = atoi (field[index]);
+    ++index;
     //report (5, "field[%d]=%s  field[%d]=%s\n", index, field[index], index+1, field[index+1]);
-    int value = strtol(field[index+1], 0, 16);
+    long int value = convertStringBase16(field[index]);
     report (5, "switch=%d  value=0x%x\n", tmp, value);
 
-/*
+    /*
     if ( tmp != fieldCount)
     {
       report (1, "Error processing Controller message\n");
     }
     else
-*/
+    */
     {
       switch(tmp)
       {
@@ -761,7 +794,7 @@ unsigned int ocean::processController (int count, char *field[])
         break;
       }
     }
-    index += 2;
+    ++index;
   }
 
   return 0;
@@ -790,14 +823,22 @@ unsigned int ocean::processBattery (int count, char *field[])
   server.battery[battery].last_battery_update = ros::Time::now();
   --count;  //get past sentence type
 
+#if 0
+  if( (count & 1) == 1 )  //should only have even count
+  {
+    report (0, "received odd count=%d \n", count);
+    count = count & 0xFE;
+  }
+#endif
+
   int32_t regNumber;
   int16_t value;
   unsigned int xx = 1;
-  while(count > 0)
+  while(count > 1)  // Must have a pair left to process --Curt
   {
-    regNumber = (int32_t)strtoul( field[xx], 0, 16);
+    regNumber = (unsigned int)convertStringBase16( field[xx] );
     ++xx;
-    value = (int16_t)strtoul( field[xx], 0, 16);
+    value = (unsigned int)convertStringBase16( field[xx] );
     ++xx;
     report (5, "reg[%u]=%x \n", regNumber, value);
     if(regNumber >= server.MAX_BAT_REG)
@@ -852,14 +893,13 @@ ocean::nmea_parse ()
   strncpy (buf, (const char *) outbuffer, NMEA_MAX);
 
   /* discard the checksum part */
-  for (p = buf; (*p != '*') && (*p >= ' ');)
+  for (p = buf; (*p != '%') && (*p >= ' ');)
     ++p;
 
-  *p = 0;
+  *p = '\0';
   /* split sentence copy on commas, filling the field array */
 
-  for (count = 0, p = (char *) buf; (p != 0) && (*p != 0);
-       p = strchr (p, ','))
+  for (count = 0, p = (char *) buf; (p != 0) && (*p != 0); p = strchr (p, ','))
   {
     *p = 0;
     ++p;
@@ -874,8 +914,7 @@ ocean::nmea_parse ()
   }
 
   /* dispatch on field zero, the sentence tag */
-  for (i = 0; i < (unsigned) (sizeof (nmea_phrase) / sizeof (nmea_phrase[0]));
-       ++i)
+  for (i = 0; i < (unsigned) (sizeof (nmea_phrase) / sizeof (nmea_phrase[0])); ++i)
   {
     s = field[0];
     //if (strlen (nmea_phrase[i].name) == 3)
