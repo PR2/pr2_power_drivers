@@ -1,8 +1,20 @@
 find_library(LOG4CXX_LIBRARY log4cxx)
-rosbuild_add_executable(ocean_server server.cpp ocean.cpp)
-rosbuild_add_executable(battery_check battery_check.cpp ocean.cpp)
+find_package(Boost REQUIRED COMPONENTS thread program_options date_time)
 
-rosbuild_add_boost_directories()
-rosbuild_link_boost(ocean_server thread program_options)
-rosbuild_link_boost(battery_check thread program_options date_time)
-target_link_libraries(ocean_server ${LOG4CXX_LIBRARY})
+include_directories(${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
+
+add_executable(ocean_server server.cpp ocean.cpp)
+add_dependencies(ocean_server ${catkin_EXPORTED_TARGETS})
+target_link_libraries(ocean_server 
+   ${catkin_LIBRARIES}
+   ${LOG4CXX_LIBRARY}
+   ${Boost_LIBRARIES})
+
+add_executable(battery_check battery_check.cpp ocean.cpp)
+add_dependencies(battery_check ${catkin_EXPORTED_TARGETS})
+target_link_libraries(battery_check
+   ${catkin_LIBRARIES}
+   ${Boost_LIBRARIES})
+
+install(TARGETS ocean_server battery_check
+   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
