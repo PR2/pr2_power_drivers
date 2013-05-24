@@ -1,12 +1,26 @@
-cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
-rosbuild_init()
+# http://ros.org/doc/groovy/api/catkin/html/user_guide/supposed.html
+cmake_minimum_required(VERSION 2.8.3)
+project(power_monitor)
 
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs pr2_msgs dynamic_reconfigure)
+find_package(Boost REQUIRED COMPONENTS thread)
 
-rosbuild_find_ros_package(dynamic_reconfigure)
-include(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)
-gencfg()
+include_directories(include ${Boost_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 
-rosbuild_add_executable(power_monitor src/power_monitor.cpp src/power_state_estimator.cpp src/observation.cpp)
+generate_dynamic_reconfigure_options(cfg/PowerMonitor.cfg)
+
+add_executable(power_monitor 
+   src/power_monitor.cpp
+   src/power_state_estimator.cpp
+   src/observation.cpp)
+
+add_dependencies(power_monitor 
+   ${power_monitor_EXPORTED_TARGETS}
+   ${catkin_EXPORTED_TARGETS})
+
+target_link_libraries(power_monitor ${catkin_LIBRARIES})
+
+install(TARGETS power_monitor
+   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+catkin_package()
