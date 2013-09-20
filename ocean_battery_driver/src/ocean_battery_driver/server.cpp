@@ -303,26 +303,15 @@ class server
                 stat.add("Time since update (s)", "N/A");
               
               if ( absolute_charge >= 0 && relative_charge >= 0 ) {
-                 ROS_INFO("Got absolute and relative charge data at the same time!");
                  if( absolute_charge < relative_charge/2 ) {
-                    ROS_WARN("Battery capacity low; please replace battery");
                     stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Battery capacity low, please replace.");
                  }
-              } else if ( absolute_charge >= 0 ) {
-                 ROS_INFO("Got absolute charge without relative charge");
-              } else if( relative_charge >= 0 ) {
-                 ROS_INFO("Got relative charge without absolute charge");
               }
 
               if ( voltage >= 0 && design_voltage >= 0 ) {
-                 ROS_INFO("Got voltage and design voltage at the same time!");
                  if( voltage < design_voltage/2 ) {
-                    stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Battery voltage too low, probably needs replacing.");
+                    stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Battery voltage too low, please replace.");
                  }
-              } else if ( voltage >= 0 ) {
-                 ROS_INFO("Got voltage without design voltage");
-              } else if( design_voltage >= 0 ) {
-                 ROS_INFO("Got design voltage without voltage");
               }
 
               // Mark batteries as stale if they don't update
