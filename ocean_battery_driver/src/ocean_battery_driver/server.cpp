@@ -219,7 +219,12 @@ class server
               stat.add("Power Present", (os.server.battery[xx].power_present) ? "True":"False");
               stat.add("No Good", (os.server.battery[xx].power_no_good) ? "True":"False");
               stat.add("Charge Inhibited", (os.server.battery[xx].inhibited) ? "True":"False");
-	      
+
+              int16_t voltage = -1;
+              int16_t design_voltage = -1;
+              int16_t relative_charge = -1;
+              int16_t absolute_charge = -1;
+              
               for(unsigned int yy = 0; yy < os.regListLength; ++yy)
               {
                 unsigned addr = os.regList[yy].address;
@@ -231,42 +236,62 @@ class server
                   else
                     ss << os.regList[yy].name;
                   
-                  if(addr == 0x1b)  //Address of manufactureDate
-                  {
-                    std::stringstream date;
-                    date.str("");
+                  switch(addr) {
+                     case 0x1b:  //Address of manufactureDate
+                        {
+                           std::stringstream date;
+                           date.str("");
 
-                    unsigned int day = os.server.battery[xx].battery_register[addr] & 0x1F;
-                    unsigned int month = (os.server.battery[xx].battery_register[addr] >> 5) & 0xF;
-                    unsigned int year = (os.server.battery[xx].battery_register[addr] >> 9) + 1980;
-                    date << month << "/" << day << "/" << year;
-                    
-                    stat.add("Manufacture Date (MDY)", date.str());
-                  }
-                  else if(addr == 0x8)  //Address of Temperature
-                  {
-                    float celsius = tempToCelcius(os.server.battery[xx].battery_register[addr]);
-                    if(celsius > BATTERY_TEMP_WARN)
-                    {
-                      ostringstream warn;
-                      warn << "High Temperature Warning > " << BATTERY_TEMP_WARN << "C";
-                      stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, warn.str());
-                    }
+                           unsigned int day = os.server.battery[xx].battery_register[addr] & 0x1F;
+                           unsigned int month = (os.server.battery[xx].battery_register[addr] >> 5) & 0xF;
+                           unsigned int year = (os.server.battery[xx].battery_register[addr] >> 9) + 1980;
+                           date << month << "/" << day << "/" << year;
 
-                    stat.add("Temperature (C)", celsius);
-                  }
-                  else if(addr == 0x1c) // Serial Number
-                  {
-                    stat.add("Serial Number", os.server.battery[xx].battery_register[addr]);
+                           stat.add("Manufacture Date (MDY)", date.str());
+                        }
+                        break;
+                     case 0x8:  //Address of Temperature
+                        {
+                           float celsius = tempToCelcius(os.server.battery[xx].battery_register[addr]);
+                           if(celsius > BATTERY_TEMP_WARN)
+                           {
+                              ostringstream warn;
+                              warn << "High Temperature Warning > " << BATTERY_TEMP_WARN << "C";
+                              stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, warn.str());
+                           }
 
-                    std::stringstream hw_id;
-                    hw_id << os.server.battery[xx].battery_register[addr];
+                           stat.add("Temperature (C)", celsius);
+                        }
+                        break;
+                     case 0x1c: // Serial Number
+                        {
+                           stat.add("Serial Number", os.server.battery[xx].battery_register[addr]);
 
-                    stat.hardware_id = hw_id.str();
-                  }
-                  else
-                  {
-                    stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
+                           std::stringstream hw_id;
+                           hw_id << os.server.battery[xx].battery_register[addr];
+
+                           stat.hardware_id = hw_id.str();
+                        }
+                        break;
+                     case 0x09: // Voltage
+                        voltage = os.server.battery[xx].battery_register[addr];
+                        stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
+                        break;
+                     case 0x19: // Design Voltage
+                        design_voltage = os.server.battery[xx].battery_register[addr];
+                        stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
+                        break;
+                     case 0x0d: // Relative state of charge
+                        relative_charge = os.server.battery[xx].battery_register[addr];
+                        stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
+                        break;
+                     case 0x0e: // Absolute state of charge
+                        absolute_charge = os.server.battery[xx].battery_register[addr];
+                        stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
+                        break;
+                     default:
+                        stat.add( ss.str(), os.server.battery[xx].battery_register[addr]);
+                        break;
                   }
                 }
               }
@@ -276,6 +301,18 @@ class server
                 stat.add("Time since update (s)", elapsed.toSec());
               else
                 stat.add("Time since update (s)", "N/A");
+              
+              if ( absolute_charge >= 0 && relative_charge >= 0 ) {
+                 if( absolute_charge < relative_charge/2 ) {
+                    stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Battery capacity low, please replace.");
+                 }
+              }
+
+              if ( voltage >= 0 && design_voltage >= 0 ) {
+                 if( voltage < design_voltage/2 ) {
+                    stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Battery voltage too low, please replace.");
+                 }
+              }
 
               // Mark batteries as stale if they don't update
               // Give them "grace period" on startup to update before we report error
@@ -289,31 +326,31 @@ class server
 
 
               // Warn for over temp alarm
-	      // If power present and not charging, not full, and temp >= 46C
-	      // 0x0d is "Relative State of Charge"
+              // If power present and not charging, not full, and temp >= 46C
+              // 0x0d is "Relative State of Charge"
               if (os.server.battery[xx].power_present && !os.server.battery[xx].charging 
-		  && os.server.battery[xx].battery_register[0x0d] < 90
-		  && tempToCelcius(os.server.battery[xx].battery_register[0x8]) > 46.0)
-		{
-		  stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Charge Inhibited, High Temperature");
-		  if (!has_warned_temp_alarm_)
-		    {
-		      ROS_WARN("Over temperature alarm found on battery %d. Battery will not charge.", xx);
-		      has_warned_temp_alarm_ = true;
-		    }
-		}
+                  && os.server.battery[xx].battery_register[0x0d] < 90
+                  && tempToCelcius(os.server.battery[xx].battery_register[0x8]) > 46.0)
+                {
+                  stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Charge Inhibited, High Temperature");
+                  if (!has_warned_temp_alarm_)
+                    {
+                      ROS_WARN("Over temperature alarm found on battery %d. Battery will not charge.", xx);
+                      has_warned_temp_alarm_ = true;
+                    }
+                }
 
-	      // Check for battery status code, not sure if this works.
-	      if (os.server.battery[xx].battery_register[0x16] & 0x1000)
-		  stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Over Temp Alarm");
+              // Check for battery status code, not sure if this works.
+              if (os.server.battery[xx].battery_register[0x16] & 0x1000)
+                  stat.mergeSummary(diagnostic_msgs::DiagnosticStatus::WARN, "Over Temp Alarm");
 
-	      // Report a console warning if battery is "No Good"
+              // Report a console warning if battery is "No Good"
               // This may be a problem with the battery, but we're not sure.
-	      if (os.server.battery[xx].power_no_good && !has_warned_no_good_)
-		{
+              if (os.server.battery[xx].power_no_good && !has_warned_no_good_)
+                {
                   ROS_WARN("Battery %d reports \"No Good\".", xx);
                   has_warned_no_good_ = true;
-		}
+                }
                           
               msg_out.status.push_back(stat);
             }
