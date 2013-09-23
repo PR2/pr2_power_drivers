@@ -1,6 +1,6 @@
 <package>
   <name>pr2_power_board</name>
-  <version>1.1.0</version>
+  <version>1.1.1</version>
   <description>This provides a ROS node for the PR2 Power Board.</description>
   <maintainer email="ahendrix@willowgarage.com">Austin Hendrix</maintainer>
 
