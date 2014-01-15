@@ -52,6 +52,8 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 
+#include <log4cxx/logger.h>
+
 #include "power_comm.h"
 #include "power_node2.h"
 #include "diagnostic_msgs/DiagnosticArray.h"

@@ -10,6 +10,8 @@
 #include <boost/program_options.hpp>
 #include <boost/thread/thread.hpp>
 
+#include <log4cxx/logger.h>
+
 #include "ocean.h"
 #include "ros/ros.h"
 #include "diagnostic_msgs/DiagnosticArray.h"
