@@ -1,6 +1,6 @@
 <package>
   <name>power_monitor</name>
-  <version>1.1.1</version>
+  <version>1.1.2</version>
   <description>The power_monitor collects messages from the ocean_battery_server and
      the pr2_power_board, and publishes a summary of their data in a
      friendlier message format.</description>
