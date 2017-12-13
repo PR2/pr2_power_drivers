@@ -17,7 +17,7 @@ catkin_python_setup()
 ## Generate added messages and services with any dependencies listed here
 generate_messages()
 
-include_directories(include ${Boost_INCLUDE_DIRS})
+include_directories(include ${Boost_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 
 add_executable(power_node src/power_node/power_node.cpp)
 add_dependencies(power_node
