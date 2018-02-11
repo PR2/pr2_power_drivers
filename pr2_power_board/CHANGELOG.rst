@@ -2,8 +2,8 @@
 Changelog for package pr2_power_board
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.1.6 (2018-02-11)
+------------------
 * change maintainer to ROS orphaned package maintaner
 * pr2_power_board: add missing include dirs
 * Contributors: Furushchev, Kei Okada
