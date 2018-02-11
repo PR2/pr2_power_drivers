@@ -2,6 +2,11 @@
 Changelog for package pr2_power_drivers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* change maintainer to ROS orphaned package maintaner
+* Contributors: Kei Okada
+
 1.1.5 (2015-01-13)
 ------------------
 
