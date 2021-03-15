@@ -7,10 +7,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - build: indigo_amd64
+            ROS_DISTRO_NAME : indigo
           - build: kinetic_amd64
             ROS_DISTRO_NAME : kinetic
           - build: melodic_amd64
             ROS_DISTRO_NAME : melodic
+          - build: noetic_amd64
+            ROS_DISTRO_NAME : noetic
 
     name: ${{ matrix.build }}
 
