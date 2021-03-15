@@ -49,7 +49,7 @@ import wxversion
 if wxversion.checkInstalled(WXVER):
     wxversion.select(WXVER)
 else:
-    print >> sys.stderr, 'This application requires wxPython version %s' % (WXVER)
+    print('This application requires wxPython version %s' % (WXVER), file=sys.stderr)
     sys.exit(1)
 
 import wx
