@@ -42,7 +42,7 @@ from diagnostic_msgs.msg import *
 
 def recurse_tree(element, messages, wiremap):
     errors = []
-    print "Looking at ", element
+    print("Looking at ", element)
     if element in wiremap:
         if "children" in wiremap[element]:
             for child in wiremap[element]["children"]:
@@ -57,10 +57,10 @@ def recurse_tree(element, messages, wiremap):
                         errors.append("difference between %f (%s) and %f (%s) voltages exceeds tolerance %f percent"%(value, element, child_value, child, tolerance))
                     else:
                         rospy.logdebug("%s passed"%child)
-                except KeyError, e:
+                except KeyError as e:
                     errors.append("badly formed parameters for element %s: %s"%(element, e));
         else:
-            print "No children of element: ", element
+            print("No children of element: ", element)
     else:
         errors.append("no element %s"% element)
         #print "wiremap is", wiremap

@@ -42,44 +42,44 @@ if __name__ == "__main__":
   while (try_count > 0):
     try:
         command = command_list[ try_count % len(command_list) ]
-        print "%d: Requesting %d to %s"%(try_count, breaker_number, command)
+        print("%d: Requesting %d to %s"%(try_count, breaker_number, command))
         
         # simplified style
         resp1 = control(serial, breaker_number, command, flags)
-        print "    Response: ", resp1
+        print("    Response: ", resp1)
         if resp1.retval != 0:
           fail_count = fail_count + 1
-          print "Response to control is bad"
+          print("Response to control is bad")
 
         rospy.sleep(delay)
         for x in current_state.circuit_state:
-          print "Current State: %d" % ( x )
+          print("Current State: %d" % ( x ))
 
         if (command == "start") and ( current_state.circuit_state[breaker_number] != PowerBoardState.STATE_ON ):
           fail_count = fail_count + 1
-          print "FAIL: Test circuit did not turn ON"
+          print("FAIL: Test circuit did not turn ON")
 
         if (command == "stop") and ( current_state.circuit_state[breaker_number] != PowerBoardState.STATE_STANDBY ):
           fail_count = fail_count + 1
-          print "FAIL: Test circuit not in STANDBY"
+          print("FAIL: Test circuit not in STANDBY")
 
         if ( current_state.circuit_state[other_breaker1] != PowerBoardState.STATE_ON ) or ( current_state.circuit_state[other_breaker2] != PowerBoardState.STATE_ON ):
           fail_count = fail_count + 1
-          print "FAIL: The other circuit is not ON"
+          print("FAIL: The other circuit is not ON")
 
-    except rospy.ServiceException, e:
-        print "Service call failed: %s"%e
+    except rospy.ServiceException as e:
+        print("Service call failed: %s"%e)
  
 
     try_count = try_count - 1
     if pause_on_fail and fail_count > last_fail_count:
-      print "Pause on Fail"
+      print("Pause on Fail")
       line = sys.stdin.readline()
       last_fail_count = fail_count
  
-  print "\n"
-  print "Test complete: "
-  print "  Test breaker_number = %d" % (breaker_number)
-  print "  Fail Count = %d " % (fail_count)
-  print "\n"
+  print("\n")
+  print("Test complete: ")
+  print("  Test breaker_number = %d" % (breaker_number))
+  print("  Fail Count = %d " % (fail_count))
+  print("\n")
 
