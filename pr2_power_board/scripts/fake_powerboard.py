@@ -76,5 +76,5 @@ if __name__ == '__main__':
     talker(options)
   except KeyboardInterrupt, e:
     pass
-  print "exiting"
+  print("exiting")
 
