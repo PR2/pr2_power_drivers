@@ -2,6 +2,13 @@
 Changelog for package pr2_power_board
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fix for python3 (`#73 <https://github.com/pr2/pr2_power_drivers/issues/73>`_)
+  * fix by 2to3 -w -f except .
+  * fix by 2to3 -w -f print .
+* Contributors: Kei Okada
+
 1.1.7 (2018-12-17)
 ------------------
 

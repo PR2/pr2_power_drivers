@@ -2,6 +2,9 @@
 Changelog for package ocean_battery_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 1.1.7 (2018-12-17)
 ------------------
 * Merge pull request `#71 <https://github.com/PR2/pr2_power_drivers/issues/71>`_ from Jntzko/last_battery_update
