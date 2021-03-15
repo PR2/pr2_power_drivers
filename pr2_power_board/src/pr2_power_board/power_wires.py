@@ -57,7 +57,7 @@ def recurse_tree(element, messages, wiremap):
                         errors.append("difference between %f (%s) and %f (%s) voltages exceeds tolerance %f percent"%(value, element, child_value, child, tolerance))
                     else:
                         rospy.logdebug("%s passed"%child)
-                except KeyError, e:
+                except KeyError as e:
                     errors.append("badly formed parameters for element %s: %s"%(element, e));
         else:
             print("No children of element: ", element)

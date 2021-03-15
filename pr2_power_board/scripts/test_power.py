@@ -67,7 +67,7 @@ if __name__ == "__main__":
           fail_count = fail_count + 1
           print("FAIL: The other circuit is not ON")
 
-    except rospy.ServiceException, e:
+    except rospy.ServiceException as e:
         print("Service call failed: %s"%e)
  
 
