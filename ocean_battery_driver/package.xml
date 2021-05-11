@@ -18,6 +18,7 @@
   <build_depend>diagnostic_updater</build_depend>
   <build_depend>diagnostic_msgs</build_depend>
   <build_depend>log4cxx</build_depend>
+  <build_depend>libboost-program-options</build_depend>
 
   <run_depend>roscpp</run_depend>
   <run_depend>pr2_msgs</run_depend>
