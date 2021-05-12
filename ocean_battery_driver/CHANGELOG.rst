@@ -2,6 +2,12 @@
 Changelog for package ocean_battery_driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* added boost_program_options as build dependency
+* fixed CMP0048 compiler warning for noetic/focal
+* Contributors: Dave Feil-Seifer
+
 1.1.8 (2021-03-15)
 ------------------
 
