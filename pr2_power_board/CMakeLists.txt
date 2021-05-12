@@ -1,8 +1,8 @@
 # http://ros.org/doc/groovy/api/catkin/html/user_guide/supposed.html
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.0.2)
 project(pr2_power_board)
 
-find_package(catkin REQUIRED COMPONENTS roscpp diagnostic_updater diagnostic_msgs pr2_msgs message_generation)
+find_package(catkin COMPONENTS roscpp diagnostic_updater diagnostic_msgs pr2_msgs message_generation)
 find_package(Boost REQUIRED COMPONENTS thread program_options)
 find_library(LOG4CXX_LIBRARY log4cxx)
 
@@ -38,7 +38,7 @@ target_link_libraries(power_node2
    ${catkin_LIBRARIES}
    ${Boost_LIBRARIES})
 
-catkin_package(CATKIN_DEPENDS message_runtime)
+catkin_package(CATKIN_DEPENDS message_runtime roscpp diagnostic_updater diagnostic_msgs pr2_msgs)
 
 install(TARGETS power_node power_node2
    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
