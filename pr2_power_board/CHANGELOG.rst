@@ -2,8 +2,8 @@
 Changelog for package pr2_power_board
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.1.9 (2021-05-12)
+------------------
 * added dependency to pr2_power_drivers for boost_program_options
 * Contributors: Dave Feil-Seifer
 
