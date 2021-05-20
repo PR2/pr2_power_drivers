@@ -2,8 +2,8 @@
 Changelog for package power_monitor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.1.10 (2021-05-20)
+-------------------
 * cmake changes for warnings under noetic
 * Contributors: Dave Feil-Seifer
 

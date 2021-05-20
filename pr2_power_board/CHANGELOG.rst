@@ -2,8 +2,8 @@
 Changelog for package pr2_power_board
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.1.10 (2021-05-20)
+-------------------
 * fixes for boost dependencies
 * cmake changes for warnings under noetic
 * Contributors: Dave Feil-Seifer
