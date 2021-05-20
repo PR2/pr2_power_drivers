@@ -2,6 +2,11 @@
 Changelog for package pr2_power_drivers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* cmake changes for warnings under noetic
+* Contributors: Dave Feil-Seifer
+
 1.1.9 (2021-05-12)
 ------------------
 
