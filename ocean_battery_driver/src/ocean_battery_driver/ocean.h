@@ -59,7 +59,7 @@ namespace willowgarage
       void packet_reset ();
       int nmea_send (const char *fmt, ...);
       void nmea_add_checksum (char *sentence);
-      time_t mkgmtime (register struct tm *t);
+      time_t mkgmtime (struct tm *t);
       unsigned int nmea_parse ();
       unsigned int processController (int count, char *field[]);
       unsigned int processSystem (int count, char *field[]);
