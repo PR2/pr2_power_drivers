@@ -59,7 +59,7 @@ PowerMonitor::PowerMonitor() : master_state_(-1),
     addEstimator(new AdvancedPowerStateEstimator());
 
     // Setup the dynamic_reconfigure callback
-    dynamic_reconfigure::Server<PowerMonitorConfig>::CallbackType config_callback = boost::bind(&PowerMonitor::configCallback, this, _1, _2);
+    dynamic_reconfigure::Server<PowerMonitorConfig>::CallbackType config_callback = boost::bind(&PowerMonitor::configCallback, this, boost::placeholders::_1, boost::placeholders::_2);
     config_server_.setCallback(config_callback);
 
     // Set the active estimation method
