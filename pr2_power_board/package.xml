@@ -1,4 +1,4 @@
-<package>
+<package format="3">
   <name>pr2_power_board</name>
   <version>1.1.10</version>
   <description>This provides a ROS node for the PR2 Power Board.</description>
@@ -12,6 +12,8 @@
   <author>Blaise Gassend</author>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend condition="$ROS_PYTHON_VERSION == 2">python-setuptools</buildtool_depend>
+  <buildtool_depend condition="$ROS_PYTHON_VERSION == 3">python3-setuptools</buildtool_depend>
 
   <build_depend>message_generation</build_depend>
   <build_depend>roscpp</build_depend>
@@ -21,11 +23,11 @@
   <build_depend>log4cxx</build_depend>
   <build_depend>libboost-program-options-dev</build_depend>
 
-  <run_depend>message_runtime</run_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>rospy</run_depend>
-  <run_depend>diagnostic_updater</run_depend>
-  <run_depend>diagnostic_msgs</run_depend>
-  <run_depend>pr2_msgs</run_depend>
-  <run_depend>log4cxx</run_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>diagnostic_updater</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>pr2_msgs</exec_depend>
+  <exec_depend>log4cxx</exec_depend>
 </package>
